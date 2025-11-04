@@ -1,0 +1,11 @@
+pandas
+scikit-learn
+matplotlib
+seaborn
+numpy
+jupyter
+ipykernel
+
+PuLP
+psycopg2-binary
+pyarrow

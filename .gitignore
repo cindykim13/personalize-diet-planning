@@ -1,0 +1,32 @@
+# .gitignore
+
+# --- Môi trường Ảo ---
+# Bỏ qua toàn bộ thư mục môi trường ảo
+env/
+env-tf/
+
+# --- Cache của Python ---
+# Bỏ qua các thư mục cache do Python tự tạo
+__pycache__/
+*.pyc
+*.pyo
+
+# --- Cấu hình của IDE/Hệ điều hành ---
+# Bỏ qua các file cấu hình cục bộ của VS Code, PyCharm và macOS
+.vscode/
+.idea/
+.DS_Store
+
+# --- File Database Cục bộ (nếu có) ---
+# Bỏ qua file database SQLite mặc định của Django
+db.sqlite3
+*.sqlite3
+
+# --- Dữ liệu và Các file được Tạo ra (QUAN TRỌNG NHẤT) ---
+# Bỏ qua toàn bộ các file dữ liệu thô, đã xử lý, và các mô hình đã huấn luyện
+data_validation/
+saved_models/
+output/
+
+# --- File rác ---
+environment_snapshot.txt
