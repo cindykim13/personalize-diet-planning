@@ -199,24 +199,60 @@ def construct_funnel_pool(meal_name: str, meal_structure: dict, primary_cluster:
     # Ensure pool doesn't exceed max_pool_size (trim if necessary, prioritizing required types)
     if len(pool) > max_pool_size:
         print(f"  [POOL] Pool size {len(pool)} exceeds limit {max_pool_size}, trimming...")
-        # Keep all required types, trim optional types proportionally
+        # Keep all required types, trim optional types proportionally while maintaining diversity
         required_types = {mt: count for mt, count in meal_structure.items() if count > 0}
         
         required_recipes = []
-        optional_recipes = []
+        optional_by_type = {}  # Group optional recipes by meal_type
         
         for recipe in pool:
-            if recipe.get('meal_type') in required_types:
+            recipe_type = recipe.get('meal_type')
+            if recipe_type in required_types:
                 required_recipes.append(recipe)
             else:
-                optional_recipes.append(recipe)
+                # Group optional recipes by type to preserve diversity
+                if recipe_type not in optional_by_type:
+                    optional_by_type[recipe_type] = []
+                optional_by_type[recipe_type].append(recipe)
         
         # Calculate how many optional recipes we can keep
         remaining_slots = max_pool_size - len(required_recipes)
         
-        if remaining_slots > 0:
-            # Keep proportionally from optional recipes
-            optional_keep = optional_recipes[:remaining_slots]
+        if remaining_slots > 0 and optional_by_type:
+            # Proportional trimming: maintain diversity across optional types
+            # Calculate proportional allocation for each optional type
+            total_optional = sum(len(recipes) for recipes in optional_by_type.values())
+            
+            optional_keep = []
+            for meal_type, recipes in optional_by_type.items():
+                # Allocate slots proportionally, but guarantee at least 1 if type was fetched
+                proportion = len(recipes) / total_optional if total_optional > 0 else 0
+                allocated = max(1, int(proportion * remaining_slots))  # At least 1 per type
+                allocated = min(allocated, len(recipes))  # Don't exceed available
+                optional_keep.extend(recipes[:allocated])
+            
+            # If we exceeded remaining_slots, trim proportionally again
+            if len(optional_keep) > remaining_slots:
+                # Final proportional trim to fit exactly
+                final_keep = []
+                total_final = len(optional_keep)
+                slots_used = 0
+                for meal_type, recipes in optional_by_type.items():
+                    if not recipes:
+                        continue
+                    # Find how many of this type we already kept
+                    kept_of_type = [r for r in optional_keep if r.get('meal_type') == meal_type]
+                    if kept_of_type:
+                        proportion = len(kept_of_type) / total_final if total_final > 0 else 0
+                        final_allocated = max(1, int(proportion * remaining_slots))
+                        final_allocated = min(final_allocated, len(kept_of_type))
+                        final_keep.extend(kept_of_type[:final_allocated])
+                        slots_used += final_allocated
+                        if slots_used >= remaining_slots:
+                            break
+                
+                optional_keep = final_keep[:remaining_slots]
+            
             pool = required_recipes + optional_keep
         else:
             # Keep only required (shouldn't happen with proper limits)

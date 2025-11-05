@@ -27,43 +27,69 @@ class MealPlannerService:
         """
         Load AI models lazily on first use.
         This prevents hangs during Django startup on Apple Silicon.
+        Uses thread-safe double-checked locking pattern.
         """
-        # Prevent multiple simultaneous loads
+        # Double-checked locking: check again after acquiring lock
         if self._models_loaded:
             return
-        print("[INFO] Attempting to load AI artifacts...")
-        base_dir = settings.BASE_DIR
-        scaler_path = os.path.join(base_dir, 'saved_models', 'robust_scaler.joblib')
-        model_path = os.path.join(base_dir, 'saved_models', 'recipe_cluster_classifier.keras')
-
-        # --- KIỂM TRA SỰ TỒN TẠI CỦA FILE TRƯỚC ---
-        if not os.path.exists(scaler_path):
-            print(f"[CRITICAL ERROR] Scaler file does not exist at the expected path: {scaler_path}")
-            return # Dừng lại ngay lập tức
-
-        if not os.path.exists(model_path):
-            print(f"[CRITICAL ERROR] Keras model file does not exist at the expected path: {model_path}")
-            return # Dừng lại ngay lập tức
-
-        # Tải Scaler
-        try:
-            self.scaler = joblib.load(scaler_path)
-            print(f"[SUCCESS] Scaler loaded from '{scaler_path}'")
-        except Exception as e:
-            print(f"[ERROR] Failed to load scaler file: {e}")
-            return # Dừng lại nếu không tải được
-
-        # Tải Model
-        try:
-            self.model = keras.models.load_model(model_path)
-            print(f"[SUCCESS] Keras model loaded from '{model_path}'")
-            self.model.predict(np.zeros((1, len(self.training_features))), verbose=0)
-            print("[INFO] Model warmed up.")
-        except Exception as e:
-            print(f"[ERROR] Failed to load Keras model file: {e}")
-            return # Dừng lại nếu không tải được
         
-        self._models_loaded = True
+        # Thread-safe: acquire lock before loading
+        with MealPlannerService._lock:
+            # Check again inside lock (double-checked locking pattern)
+            if self._models_loaded:
+                return
+            
+            print("[INFO] Attempting to load AI artifacts...")
+            base_dir = settings.BASE_DIR
+            scaler_path = os.path.join(base_dir, 'saved_models', 'robust_scaler.joblib')
+            model_path = os.path.join(base_dir, 'saved_models', 'recipe_cluster_classifier.keras')
+
+            # Check file existence with absolute path resolution
+            if not os.path.exists(scaler_path):
+                abs_path = os.path.abspath(scaler_path)
+                print(f"[CRITICAL ERROR] Scaler file does not exist at: {abs_path}")
+                print(f"[INFO] BASE_DIR is: {base_dir}")
+                # Mark as attempted to prevent infinite retries
+                self._models_loaded = True  # Prevent retry loops
+                return
+
+            if not os.path.exists(model_path):
+                abs_path = os.path.abspath(model_path)
+                print(f"[CRITICAL ERROR] Keras model file does not exist at: {abs_path}")
+                print(f"[INFO] BASE_DIR is: {base_dir}")
+                # Mark as attempted to prevent infinite retries
+                self._models_loaded = True  # Prevent retry loops
+                return
+
+            # Load Scaler
+            try:
+                self.scaler = joblib.load(scaler_path)
+                print(f"[SUCCESS] Scaler loaded from '{scaler_path}'")
+            except Exception as e:
+                print(f"[ERROR] Failed to load scaler file: {e}")
+                print(f"[INFO] Traceback: {type(e).__name__}: {str(e)}")
+                # Mark as attempted to prevent infinite retries
+                self._models_loaded = True  # Prevent retry loops
+                return
+
+            # Load Model
+            try:
+                self.model = keras.models.load_model(model_path)
+                print(f"[SUCCESS] Keras model loaded from '{model_path}'")
+                # Warm up model to verify it works
+                warmup_input = np.zeros((1, len(self.training_features)))
+                self.model.predict(warmup_input, verbose=0)
+                print("[INFO] Model warmed up successfully.")
+            except Exception as e:
+                print(f"[ERROR] Failed to load Keras model file: {e}")
+                print(f"[INFO] Traceback: {type(e).__name__}: {str(e)}")
+                # Mark as attempted to prevent infinite retries
+                self._models_loaded = True  # Prevent retry loops
+                return
+            
+            # Success: mark as loaded
+            self._models_loaded = True
+            print("[SUCCESS] All AI artifacts loaded successfully.")
 
     @staticmethod
     def get_instance():
