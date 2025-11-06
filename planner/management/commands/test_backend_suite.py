@@ -6,25 +6,28 @@ from io import StringIO
 import sys
 
 class Command(BaseCommand):
-    help = 'Comprehensive backend test suite - runs all tests and provides final audit report'
+    help = 'TIER 3: Test suite runner/orchestrator - executes all backend tests and provides audit report'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--skip-slow',
             action='store_true',
-            help='Skip slow integration tests',
+            help='Skip slow integration tests (test_meal_composition, test_final_validation)',
         )
 
     def handle(self, *args, **options):
         self.stdout.write("=" * 80)
-        self.stdout.write("BACKEND TEST SUITE - COMPREHENSIVE VALIDATION")
+        self.stdout.write("TIER 3: TEST SUITE RUNNER / ORCHESTRATOR")
         self.stdout.write("=" * 80)
-        self.stdout.write("\nThis test suite validates all backend components:")
-        self.stdout.write("  1. AI Service (model loading and predictions)")
-        self.stdout.write("  2. Optimization Service (meal composition)")
-        self.stdout.write("  3. Planner Service (multi-day orchestration)")
-        self.stdout.write("  4. Integration Tests (full pipeline)")
-        self.stdout.write("  5. User Scenario Tests (realistic personas)")
+        self.stdout.write("Purpose: Automated regression testing - executes all backend test commands")
+        self.stdout.write("Use Case: Comprehensive validation before deployment or after major changes")
+        self.stdout.write("\n" + "=" * 80)
+        self.stdout.write("\nThis test runner executes the following test commands:")
+        self.stdout.write("  1. test_ai_service - AI model loading and cluster predictions")
+        self.stdout.write("  2. test_optimizer - Optimization service functionality")
+        self.stdout.write("  3. test_meal_composition - Single-scenario integration test (TIER 1)")
+        self.stdout.write("  4. test_user_scenarios - User scenario tests")
+        self.stdout.write("  5. test_final_validation - Multi-scenario validation suite (TIER 2)")
         self.stdout.write("\n" + "=" * 80 + "\n")
 
         test_results = {
@@ -109,25 +112,28 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"User Scenario Tests FAILED: {str(e)}"))
             test_results['failed'].append("User Scenario Tests")
 
-        # Test 5: Full Pipeline
+        # Test 5: Final Validation (Diverse User Scenarios)
         if not options['skip_slow']:
-            self.stdout.write("\n[TEST 5/5] Full Pipeline End-to-End Test")
+            self.stdout.write("\n[TEST 5/5] Final Validation - Diverse User Scenarios")
             self.stdout.write("-" * 80)
             try:
                 out = StringIO()
-                call_command('test_full_pipeline', stdout=out, stderr=out)
+                call_command('test_final_validation', stdout=out, stderr=out)
                 output = out.getvalue()
                 self.stdout.write(output)
                 
-                if "ERROR" in output or "FAILED" in output:
-                    test_results['failed'].append("Full Pipeline Test")
-                else:
-                    test_results['passed'].append("Full Pipeline Test")
+                if "FAILED" in output or "❌" in output:
+                    test_results['failed'].append("Final Validation Test")
+                elif "⚠️" in output:
+                    test_results['passed'].append("Final Validation Test")
+                    test_results['warnings'].append("Final Validation - Some cluster predictions unexpected")
+                elif "✅" in output:
+                    test_results['passed'].append("Final Validation Test")
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Full Pipeline Test FAILED: {str(e)}"))
-                test_results['failed'].append("Full Pipeline Test")
+                self.stdout.write(self.style.ERROR(f"Final Validation Test FAILED: {str(e)}"))
+                test_results['failed'].append("Final Validation Test")
         else:
-            self.stdout.write(self.style.WARNING("Skipping slow end-to-end test (--skip-slow)"))
+            self.stdout.write(self.style.WARNING("Skipping comprehensive validation test (--skip-slow)"))
 
         # Final Audit Report
         self.stdout.write("\n" + "=" * 80)

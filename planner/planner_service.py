@@ -5,6 +5,8 @@ from .ai_service import MealPlannerService
 from .optimization_service import create_daily_plan_global
 from django.db.models import Q
 import random
+import gc
+import time
 
 # Define only the fields needed for optimization to minimize memory usage
 OPTIMIZATION_FIELDS = [
@@ -199,61 +201,32 @@ def construct_funnel_pool(meal_name: str, meal_structure: dict, primary_cluster:
     # Ensure pool doesn't exceed max_pool_size (trim if necessary, prioritizing required types)
     if len(pool) > max_pool_size:
         print(f"  [POOL] Pool size {len(pool)} exceeds limit {max_pool_size}, trimming...")
-        # Keep all required types, trim optional types proportionally while maintaining diversity
+        # Keep all required types, trim optional types intelligently
         required_types = {mt: count for mt, count in meal_structure.items() if count > 0}
         
         required_recipes = []
-        optional_by_type = {}  # Group optional recipes by meal_type
+        priority_optional_recipes = []  # For Dinner: desserts have priority
+        other_optional_recipes = []
         
         for recipe in pool:
             recipe_type = recipe.get('meal_type')
             if recipe_type in required_types:
                 required_recipes.append(recipe)
+            elif meal_name == 'Dinner' and recipe_type == 'Dessert':
+                # Prioritize desserts for Dinner pools
+                priority_optional_recipes.append(recipe)
             else:
-                # Group optional recipes by type to preserve diversity
-                if recipe_type not in optional_by_type:
-                    optional_by_type[recipe_type] = []
-                optional_by_type[recipe_type].append(recipe)
+                other_optional_recipes.append(recipe)
         
         # Calculate how many optional recipes we can keep
         remaining_slots = max_pool_size - len(required_recipes)
         
-        if remaining_slots > 0 and optional_by_type:
-            # Proportional trimming: maintain diversity across optional types
-            # Calculate proportional allocation for each optional type
-            total_optional = sum(len(recipes) for recipes in optional_by_type.values())
-            
-            optional_keep = []
-            for meal_type, recipes in optional_by_type.items():
-                # Allocate slots proportionally, but guarantee at least 1 if type was fetched
-                proportion = len(recipes) / total_optional if total_optional > 0 else 0
-                allocated = max(1, int(proportion * remaining_slots))  # At least 1 per type
-                allocated = min(allocated, len(recipes))  # Don't exceed available
-                optional_keep.extend(recipes[:allocated])
-            
-            # If we exceeded remaining_slots, trim proportionally again
-            if len(optional_keep) > remaining_slots:
-                # Final proportional trim to fit exactly
-                final_keep = []
-                total_final = len(optional_keep)
-                slots_used = 0
-                for meal_type, recipes in optional_by_type.items():
-                    if not recipes:
-                        continue
-                    # Find how many of this type we already kept
-                    kept_of_type = [r for r in optional_keep if r.get('meal_type') == meal_type]
-                    if kept_of_type:
-                        proportion = len(kept_of_type) / total_final if total_final > 0 else 0
-                        final_allocated = max(1, int(proportion * remaining_slots))
-                        final_allocated = min(final_allocated, len(kept_of_type))
-                        final_keep.extend(kept_of_type[:final_allocated])
-                        slots_used += final_allocated
-                        if slots_used >= remaining_slots:
-                            break
-                
-                optional_keep = final_keep[:remaining_slots]
-            
-            pool = required_recipes + optional_keep
+        if remaining_slots > 0:
+            # Priority: Keep priority optional (desserts) first, then others
+            priority_keep = priority_optional_recipes[:min(len(priority_optional_recipes), remaining_slots)]
+            remaining_after_priority = remaining_slots - len(priority_keep)
+            other_keep = other_optional_recipes[:remaining_after_priority] if remaining_after_priority > 0 else []
+            pool = required_recipes + priority_keep + other_keep
         else:
             # Keep only required (shouldn't happen with proper limits)
             pool = required_recipes
@@ -269,6 +242,170 @@ def construct_funnel_pool(meal_name: str, meal_structure: dict, primary_cluster:
     print(f"  [POOL] Final pool: {len(pool)} recipes, distribution: {final_type_counts}")
     
     return pool
+
+
+def calculate_nutritional_targets_from_profile(user_profile: dict) -> dict:
+    """
+    PART 1: THE "USER REQUEST ANALYZER" MODULE
+    
+    Transforms qualitative user data into quantitative, actionable nutritional targets.
+    This is the primary entry point that calculates all nutritional requirements from scratch.
+    
+    Implements scientifically-backed formulas:
+    - BMR: Mifflin-St Jeor Equation
+    - TDEE: Harris-Benedict Activity Multipliers
+    - Goal-based caloric adjustments
+    - Goal-based macronutrient distribution
+    
+    :param user_profile: Dictionary containing:
+        Personal Info:
+            - 'age': (int) e.g., 30
+            - 'gender': (str) 'male' or 'female'
+            - 'height_cm': (float) e.g., 175.0
+            - 'weight_kg': (float) e.g., 70.0
+            - 'activity_level': (str) 'sedentary', 'light', 'moderate', 'active', 'very_active'
+        Goal:
+            - 'primary_goal': (str) 'lose_weight', 'maintain', 'gain_muscle'
+            - 'pace': (str, optional) 'mild', 'moderate', 'fast'
+        Plan Customization:
+            - 'number_of_days': (int) e.g., 7
+            - 'allergies': (str, optional) comma-separated e.g., "shrimp, peanuts"
+            - 'dislikes': (str, optional) comma-separated e.g., "lamb, bitter melon"
+    
+    :return: Dictionary with 'daily_target_nutrients' containing 'calories', 'protein_g', 'fat_g', 'carbs_g'
+    """
+    # Extract user profile data
+    age = user_profile.get('age', 30)
+    gender = user_profile.get('gender', 'male').lower()
+    height_cm = user_profile.get('height_cm', 170.0)
+    weight_kg = user_profile.get('weight_kg', 70.0)
+    activity_level = user_profile.get('activity_level', 'moderate').lower()
+    primary_goal = user_profile.get('primary_goal', 'maintain').lower()
+    pace = user_profile.get('pace', 'moderate').lower()
+    
+    # === STEP 1.1: Calculate Basal Metabolic Rate (BMR) using Mifflin-St Jeor Equation ===
+    if gender == 'male':
+        bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) + 5
+    elif gender == 'female':
+        bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) - 161
+    else:
+        # Default to male formula if gender is invalid
+        bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) + 5
+    
+    # === STEP 1.2: Calculate Total Daily Energy Expenditure (TDEE) ===
+    activity_multipliers = {
+        'sedentary': 1.2,
+        'light': 1.375,
+        'moderate': 1.55,
+        'active': 1.725,
+        'very_active': 1.9
+    }
+    multiplier = activity_multipliers.get(activity_level, 1.55)  # Default to moderate
+    tdee = bmr * multiplier
+    
+    # === STEP 1.3: Apply Goal-Based Caloric Adjustments ===
+    goal_adjustments = {
+        ('lose_weight', 'fast'): -750,
+        ('lose_weight', 'moderate'): -500,
+        ('lose_weight', 'mild'): -250,
+        ('maintain', 'mild'): 0,
+        ('maintain', 'moderate'): 0,
+        ('maintain', 'fast'): 0,
+        ('gain_muscle', 'mild'): 250,
+        ('gain_muscle', 'moderate'): 400,
+        ('gain_muscle', 'fast'): 500
+    }
+    
+    # Get adjustment (default to 0 if combination not found)
+    adjustment_key = (primary_goal, pace)
+    caloric_adjustment = goal_adjustments.get(adjustment_key, 0)
+    
+    # If lose_weight without pace specified, default to moderate
+    if primary_goal == 'lose_weight' and adjustment_key not in goal_adjustments:
+        caloric_adjustment = -500
+    
+    # If gain_muscle without pace specified, default to moderate
+    if primary_goal == 'gain_muscle' and adjustment_key not in goal_adjustments:
+        caloric_adjustment = 400
+    
+    target_calories = tdee + caloric_adjustment
+    
+    # === STEP 1.4: Apply Safety Floor ===
+    min_calories = 1500 if gender == 'male' else 1200
+    target_calories = max(target_calories, min_calories)
+    
+    # === STEP 1.5: Determine Goal-Based Macronutrient Distribution Ratios ===
+    macro_distributions = {
+        'lose_weight': {'protein': 0.40, 'fat': 0.30, 'carbs': 0.30},  # Higher protein for satiety
+        'maintain': {'protein': 0.20, 'fat': 0.30, 'carbs': 0.50},     # Balanced, standard diet
+        'gain_muscle': {'protein': 0.40, 'fat': 0.20, 'carbs': 0.40}   # High protein for synthesis
+    }
+    
+    macro_ratios = macro_distributions.get(primary_goal, macro_distributions['maintain'])
+    
+    # === STEP 1.6: Calculate Final Gram Targets using Atwater System ===
+    # Protein: 4 kcal/gram, Fat: 9 kcal/gram, Carbs: 4 kcal/gram
+    protein_calories = target_calories * macro_ratios['protein']
+    fat_calories = target_calories * macro_ratios['fat']
+    carbs_calories = target_calories * macro_ratios['carbs']
+    
+    protein_g = round(protein_calories / 4, 1)
+    fat_g = round(fat_calories / 9, 1)
+    carbs_g = round(carbs_calories / 4, 1)
+    
+    # Return the calculated nutritional targets
+    daily_target_nutrients = {
+        'calories': round(target_calories, 1),
+        'protein_g': protein_g,
+        'fat_g': fat_g,
+        'carbs_g': carbs_g
+    }
+    
+    # Log the calculation for debugging
+    print(f"[ANALYZER] BMR: {bmr:.1f} kcal/day")
+    print(f"[ANALYZER] TDEE: {tdee:.1f} kcal/day (activity: {activity_level})")
+    print(f"[ANALYZER] Goal Adjustment: {caloric_adjustment:+.0f} kcal/day ({primary_goal}, {pace})")
+    print(f"[ANALYZER] Target Calories: {target_calories:.1f} kcal/day")
+    print(f"[ANALYZER] Macro Distribution: Protein {macro_ratios['protein']*100:.0f}%, Fat {macro_ratios['fat']*100:.0f}%, Carbs {macro_ratios['carbs']*100:.0f}%")
+    print(f"[ANALYZER] Daily Targets: {daily_target_nutrients}")
+    
+    return daily_target_nutrients
+
+
+def map_goal_to_cluster(primary_goal: str) -> int:
+    """
+    PART 2: THE "SEMANTIC CLUSTER MAPPING" MODULE
+    
+    This function implements a direct, rule-based mapping from the user's semantic goal
+    to the appropriate nutritional cluster. This replaces the flawed AI prediction step
+    that attempted to classify daily nutritional targets (which are on a different scale
+    than the per-recipe profiles the AI was trained on).
+    
+    ARCHITECTURAL FIX:
+    - Training data: Per-recipe nutritional profiles (per 100g)
+    - Previous inference: Daily nutritional targets (total daily calories)
+    - Problem: Data distribution mismatch → incorrect predictions
+    - Solution: Rule-based semantic mapping from user goals to clusters
+    
+    Cluster Mapping:
+    - Cluster 0: "Balanced / High-Fiber" - For maintenance goals
+    - Cluster 1: "High-Fat / Low-Carb" - For keto/low-carb goals (future)
+    - Cluster 2: "High-Carb / Low-Fat / Sugary" - For high-carb goals (future)
+    - Cluster 3: "High-Protein" - For muscle gain and weight loss goals
+    
+    :param primary_goal: User's primary goal ('lose_weight', 'maintain', 'gain_muscle')
+    :return: Cluster ID (integer)
+    """
+    # Rule 1: High-protein goals (muscle gain, weight loss) → High-Protein cluster
+    if primary_goal in ['gain_muscle', 'lose_weight']:
+        return 3  # High-Protein cluster
+    
+    # Rule 2: Maintenance goal → Balanced / High-Fiber cluster
+    if primary_goal == 'maintain':
+        return 0  # Balanced / High-Fiber cluster
+    
+    # Default fallback: Balanced cluster for unknown goals
+    return 0
 
 
 def allocate_nutrients_to_meals(daily_targets: dict) -> dict:
@@ -301,9 +438,14 @@ def allocate_nutrients_to_meals(daily_targets: dict) -> dict:
     return meal_targets
 
 
-def generate_full_meal_plan(user_request: dict):
+def generate_full_meal_plan(user_profile: dict):
     """
-    Main orchestrator function that generates a complete multi-day meal plan with structured meals.
+    PART 4: THE "ORCHESTRATOR" - Main entry point for meal plan generation.
+    
+    This function orchestrates the complete end-to-end pipeline:
+    1. PART 1: Calculate nutritional targets from user profile
+    2. PART 2: Map user goal to nutritional cluster (rule-based semantic mapping)
+    3. PART 3: Construct recipe pools and optimize daily meal plans using global optimization
     
     MEMORY-OPTIMIZED VERSION:
     - Keeps QuerySets lazy until absolutely necessary
@@ -311,17 +453,21 @@ def generate_full_meal_plan(user_request: dict):
     - Uses database-level filtering to avoid loading large datasets
     - Limits recipe pool size per optimization to prevent memory overflow
     
-    This function implements a hierarchical optimization approach:
-    1. Allocates daily nutritional targets to Breakfast, Lunch, and Dinner
-    2. For each day, generates Breakfast, Lunch, and Dinner separately
-    3. Each meal is optimized to include at least 1 Main Course and 1 complementary dish
-    4. Tracks used recipes globally to ensure no repetition across the entire plan
+    :param user_profile: Dictionary containing user profile data:
+        Personal Info:
+            - 'age': (int) e.g., 30
+            - 'gender': (str) 'male' or 'female'
+            - 'height_cm': (float) e.g., 175.0
+            - 'weight_kg': (float) e.g., 70.0
+            - 'activity_level': (str) 'sedentary', 'light', 'moderate', 'active', 'very_active'
+        Goal:
+            - 'primary_goal': (str) 'lose_weight', 'maintain', 'gain_muscle'
+            - 'pace': (str, optional) 'mild', 'moderate', 'fast'
+        Plan Customization:
+            - 'number_of_days': (int) e.g., 7
+            - 'allergies': (str, optional) comma-separated e.g., "shrimp, peanuts"
+            - 'dislikes': (str, optional) comma-separated e.g., "lamb, bitter melon"
     
-    :param user_request: Dictionary containing:
-        - 'target_nutrients': dict with 'calories', 'protein_g', 'fat_g', 'carbs_g'
-        - 'number_of_days': int (e.g., 7)
-        - 'allergies': list of strings (future use)
-        - 'dislikes': list of strings (future use)
     :return: Dictionary with structure:
         {
             'Day 1': {
@@ -334,11 +480,39 @@ def generate_full_meal_plan(user_request: dict):
         }
     """
     
-    # Step 1: Predict nutritional cluster using ANN
-    # (For now, using a simplified approach - can be enhanced with actual ANN prediction)
-    predicted_cluster = 3  # High-Protein cluster (can be made dynamic)
+    # === PART 1: THE "USER REQUEST ANALYZER" ===
+    # Calculate nutritional targets from user profile
+    print("\n[ORCHESTRATOR] === PART 1: USER REQUEST ANALYZER ===")
+    daily_targets = calculate_nutritional_targets_from_profile(user_profile)
     
-    # Step 2: Build base QuerySet (LAZY - no data loaded yet)
+    # Extract plan customization
+    number_of_days = user_profile.get('number_of_days', 7)
+    allergies_str = user_profile.get('allergies', '')
+    dislikes_str = user_profile.get('dislikes', '')
+    
+    # Parse allergies and dislikes (comma-separated strings)
+    allergies = [a.strip().lower() for a in allergies_str.split(',') if a.strip()] if allergies_str else []
+    dislikes = [d.strip().lower() for d in dislikes_str.split(',') if d.strip()] if dislikes_str else []
+    
+    # === PART 2: THE "SEMANTIC CLUSTER MAPPING" MODULE ===
+    # ARCHITECTURAL FIX: Replace AI prediction with rule-based semantic mapping
+    # The AI model was trained on per-recipe profiles (per 100g), but we were attempting
+    # to use it on daily nutritional targets (total daily calories). This fundamental
+    # data distribution mismatch caused incorrect predictions.
+    # 
+    # Solution: Direct rule-based mapping from user goals to clusters
+    print("\n[ORCHESTRATOR] === PART 2: SEMANTIC CLUSTER MAPPING ===")
+    
+    primary_goal = user_profile.get('primary_goal', 'maintain')
+    predicted_cluster = map_goal_to_cluster(primary_goal)
+    
+    # Get cluster name for logging
+    cluster_map = dict(Recipe.objects.values_list('cluster', 'cluster_name').distinct())
+    cluster_name = cluster_map.get(predicted_cluster, "Unknown")
+    print(f"[ORCHESTRATOR] Rule-Based Cluster Selection: {predicted_cluster} ({cluster_name})")
+    print(f"[ORCHESTRATOR] Mapping Logic: primary_goal='{primary_goal}' → cluster={predicted_cluster}")
+    
+    # Build base QuerySet (LAZY - no data loaded yet)
     # Filter at database level, exclude unknown meal types
     base_queryset = Recipe.objects.filter(
         cluster=predicted_cluster
@@ -346,34 +520,41 @@ def generate_full_meal_plan(user_request: dict):
         meal_type='Unknown'
     )
     
-    # TODO: Add allergy and dislike filtering here (database-level)
-    # if user_request.get('allergies'):
-    #     base_queryset = base_queryset.exclude(...)
+    # Apply allergy and dislike filtering (database-level for efficiency)
+    # Simple keyword-based filtering on recipe names (case-insensitive)
+    if allergies:
+        for allergy in allergies:
+            base_queryset = base_queryset.exclude(name__icontains=allergy)
+        print(f"[ORCHESTRATOR] Filtered out recipes containing: {', '.join(allergies)}")
+    
+    if dislikes:
+        for dislike in dislikes:
+            base_queryset = base_queryset.exclude(name__icontains=dislike)
+        print(f"[ORCHESTRATOR] Filtered out recipes containing: {', '.join(dislikes)}")
     
     # Check if we have enough recipes (using count() - still lazy, just a DB query)
     total_available = base_queryset.count()
     if total_available < 6:  # Need at least 2 recipes per meal × 3 meals
-        print(f"[PLANNER] ERROR: Not enough recipes in pool ({total_available}). Need at least 6.")
+        print(f"[ORCHESTRATOR] ERROR: Not enough recipes in pool ({total_available}). Need at least 6.")
         return None
     
-    print(f"[PLANNER] Found {total_available} available recipes in cluster {predicted_cluster}")
+    print(f"[ORCHESTRATOR] Found {total_available} available recipes in cluster {predicted_cluster}")
     
-    # Step 3: Get daily targets (NO PER-MEAL ALLOCATION - Daily Global Optimization uses daily totals)
-    daily_targets = user_request.get('target_nutrients', {})
+    # === PART 3: THE "GLOBAL DAILY OPTIMIZER" ===
+    print(f"\n[ORCHESTRATOR] === PART 3: GLOBAL DAILY OPTIMIZER ===")
+    print(f"[ORCHESTRATOR] Generating {number_of_days}-day meal plan...")
     
-    # Step 4: Generate multi-day plan using Daily Global Optimization
+    # Generate multi-day plan using Daily Global Optimization
     # CRITICAL: Keep used_recipe_ids as a set for O(1) lookups
     weekly_plan = {}
     used_recipe_ids = set()
     
-    number_of_days = user_request.get('number_of_days', 1)
-    
     # Configuration: Limit recipe pool size per meal to prevent memory issues
     MAX_RECIPES_PER_MEAL_POOL = 500  # Per-meal pool limit (total day pool will be ~1500)
-    
+
     for day in range(1, number_of_days + 1):
-        print(f"\n[PLANNER] Generating Day {day} (Daily Global Optimization)...")
-        print(f"[PLANNER] Recipes used so far: {len(used_recipe_ids)}")
+        print(f"\n[ORCHESTRATOR] Generating Day {day}/{number_of_days} (Daily Global Optimization)...")
+        print(f"[ORCHESTRATOR] Recipes used so far: {len(used_recipe_ids)}")
         
         # Build recipe pools for all 3 meals for this day
         recipe_pools = {}
@@ -403,7 +584,7 @@ def generate_full_meal_plan(user_request: dict):
         if not all_pools_valid:
             print(f"[PLANNER] ERROR: Failed to construct recipe pools for Day {day}.")
             break
-        
+
         # DAILY GLOBAL OPTIMIZATION: Optimize all 3 meals simultaneously with daily totals
         print(f"  [PLANNER] Optimizing all 3 meals simultaneously for Day {day}...")
         
@@ -433,6 +614,8 @@ def generate_full_meal_plan(user_request: dict):
         # Log optimization status
         if status == 'Optimal':
             print(f"  [PLANNER] ✓ Day {day} optimized successfully (status: {status})")
+        elif status == 'Optimal_Relaxed':
+            print(f"  [PLANNER] ✓ Day {day} optimized with relaxed constraints (status: {status})")
         else:
             print(f"  [PLANNER] ⚠ Day {day} optimization status: {status}")
         
@@ -472,11 +655,22 @@ def generate_full_meal_plan(user_request: dict):
         weekly_plan[f"Day {day}"] = day_plan
         print(f"[PLANNER] Day {day} completed: {total_recipes_selected} recipes total")
         
-        # Clean up pools
+        # CRITICAL: Explicit cleanup to release resources and prevent subprocess leaks
+        # This ensures PuLP solver subprocesses are properly cleaned up before next solve
         del recipe_pools
+        del daily_plan_result
+        # Force garbage collection to release subprocess handles immediately
+        # This is critical for preventing hangs on subsequent solver invocations
+        gc.collect()
+        
+        # Small delay to allow subprocess cleanup (PuLP CBC solver)
+        # This gives the OS time to properly terminate and clean up subprocess resources
+        # Critical for preventing hangs when generating multi-day plans or running multiple scenarios
+        if day < number_of_days:  # No delay needed after last day
+            time.sleep(0.1)  # 100ms delay between days
     
     if not weekly_plan:
         print("[PLANNER] ERROR: Could not generate any complete days.")
         return None
-    
+            
     return weekly_plan

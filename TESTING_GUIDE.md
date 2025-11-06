@@ -1,7 +1,202 @@
 # Testing Guide
-## Personalized Meal Plan Generator Backend
+## Personalized Meal Plan Generator - Backend Test Suite
 
-This guide provides step-by-step instructions for running the backend test suite.
+**Version:** 1.0  
+**Date:** November 2024  
+**Status:** Complete
+
+---
+
+## Overview
+
+The backend test suite is organized into a clear **three-tiered hierarchy** that allows for different levels of validation depending on your needs:
+
+- **Tier 1:** Quick single-scenario integration test
+- **Tier 2:** Comprehensive multi-scenario validation suite
+- **Tier 3:** Automated test runner/orchestrator
+
+This guide explains the purpose of each test command and provides the exact commands to run them.
+
+---
+
+## Tier 1: Quick Single-Scenario Integration Test
+
+### Command: `test_meal_composition`
+
+**Purpose:**  
+Quick validation of the complete end-to-end pipeline with a single, default user profile. Perfect for developers who need fast feedback after making code changes.
+
+**Use Cases:**
+- Quick sanity check after code modifications
+- Fast validation during development
+- Single-scenario integration testing
+
+**What It Tests:**
+- Complete end-to-end pipeline (User Profile → Targets → Rule-Based Cluster Mapping → Optimization → Meal Plan)
+- Structural integrity (meal composition, recipe uniqueness)
+- Nutritional accuracy
+- Semantic rules (proper meal types, dessert limits, etc.)
+
+**How to Run:**
+```bash
+python manage.py test_meal_composition
+```
+
+**Expected Output:**
+- Single user profile (Balanced diet persona)
+- Calculated nutritional targets
+- Rule-based cluster selection
+- Generated 3-day meal plan
+- Detailed validation report with pass/fail status
+
+**Execution Time:** ~30-60 seconds
+
+---
+
+## Tier 2: Comprehensive Multi-Scenario Validation Suite
+
+### Command: `test_final_validation`
+
+**Purpose:**  
+Comprehensive stress test across diverse user personas to ensure the rule-based personalization and optimization logic are robust. This is the master validation suite.
+
+**Use Cases:**
+- Deep validation before releases
+- Testing rule-based cluster mapping accuracy
+- Validating system robustness across different user profiles
+- Quality assurance and regression testing
+
+**What It Tests:**
+- **4+ diverse user personas** targeting different nutritional clusters:
+  1. High-Protein / Muscle Gain
+  2. Balanced / DASH Diet Style
+  3. High-Fat / Low-Carb (Keto)
+  4. High-Carb / Low-Fat
+- Complete end-to-end pipeline for each persona
+- Rule-based cluster mapping accuracy
+- Nutritional target calculation correctness
+- Meal plan generation for diverse profiles
+- Pool construction and dessert availability
+
+**How to Run:**
+```bash
+python manage.py test_final_validation
+```
+
+**Expected Output:**
+- 4+ diverse user personas
+- For each persona:
+  - User profile details
+  - Calculated nutritional targets and macro ratios
+  - Rule-based cluster selection
+  - Generated meal plan
+  - Validation results
+- Final summary report with:
+  - Pass/fail status for each persona
+  - Rule-based cluster mapping accuracy
+  - Dessert pool validation
+  - Overall system status
+
+**Execution Time:** ~2-5 minutes (depending on number of personas and days per plan)
+
+---
+
+## Tier 3: Test Suite Runner / Orchestrator
+
+### Command: `test_backend_suite`
+
+**Purpose:**  
+Automated test runner that executes all backend test commands in sequence and provides a consolidated audit report. This is the primary command for comprehensive regression testing.
+
+**Use Cases:**
+- Automated regression testing
+- Pre-deployment validation
+- Comprehensive system audit
+- CI/CD pipeline integration
+
+**What It Executes:**
+1. `test_ai_service` - AI model loading and predictions
+2. `test_optimizer` - Optimization service functionality
+3. `test_meal_composition` - Single-scenario integration (Tier 1)
+4. `test_user_scenarios` - User scenario tests
+5. `test_final_validation` - Multi-scenario validation (Tier 2)
+
+**How to Run:**
+```bash
+# Run all tests (comprehensive)
+python manage.py test_backend_suite
+
+# Skip slow tests (faster execution)
+python manage.py test_backend_suite --skip-slow
+```
+
+**Options:**
+- `--skip-slow`: Skip long-running tests (`test_meal_composition` and `test_final_validation`)
+
+**Expected Output:**
+- Execution of all test commands in sequence
+- Individual test results
+- Final consolidated audit report:
+  - Total tests executed
+  - Pass/fail counts
+  - Warnings summary
+  - Overall system status
+
+**Execution Time:**
+- Full suite: ~3-7 minutes
+- With `--skip-slow`: ~30-60 seconds
+
+---
+
+## Test Hierarchy Summary
+
+```
+Backend Test Suite
+│
+├── TIER 1: Quick Integration Test
+│   └── test_meal_composition
+│       └── Single user profile
+│       └── Fast execution (~30-60s)
+│
+├── TIER 2: Comprehensive Validation
+│   └── test_final_validation
+│       └── Multiple diverse personas
+│       └── Deep validation (~2-5 min)
+│
+└── TIER 3: Test Runner
+    └── test_backend_suite
+        └── Orchestrates all tests
+        └── Full regression (~3-7 min)
+        └── Quick mode with --skip-slow (~30-60s)
+```
+
+---
+
+## Recommended Workflow
+
+### During Development
+Use **Tier 1** for quick feedback:
+```bash
+python manage.py test_meal_composition
+```
+
+### Before Committing
+Use **Tier 3** with quick mode:
+```bash
+python manage.py test_backend_suite --skip-slow
+```
+
+### Before Release
+Use **Tier 3** full suite:
+```bash
+python manage.py test_backend_suite
+```
+
+### Deep Validation
+Use **Tier 2** for comprehensive testing:
+```bash
+python manage.py test_final_validation
+```
 
 ---
 
@@ -19,320 +214,110 @@ Before running any tests, ensure:
    python manage.py classify_meal_types
    ```
 
-3. **AI models are available:**
-   - Check that `saved_models/robust_scaler.joblib` exists
-   - Check that `saved_models/recipe_cluster_classifier.keras` exists
-   - Check that `saved_models/kmeans_model.joblib` exists
+3. **AI models are available (optional, for AI service tests only):**
+   - `saved_models/robust_scaler.joblib`
+   - `saved_models/recipe_cluster_classifier.keras`
+   - `saved_models/kmeans_model.joblib`
+   
+   Note: The main meal plan generation pipeline uses rule-based cluster mapping and does not require AI models.
 
 ---
 
-## Quick Start
-
-### Run All Tests (Recommended)
-
-Execute the comprehensive test suite:
-
-```bash
-python manage.py test_backend_suite
-```
-
-This command runs all tests sequentially and provides a final audit report.
-
-**Expected Execution Time:** 3-5 minutes
-
-**Expected Output:** See "Successful Test Output" section below.
-
----
-
-## Individual Test Commands
-
-### 1. AI Service Tests
-
-**Command:**
-```bash
-python manage.py test_ai_service
-```
-
-**Purpose:** Validates that the AI service correctly loads models and predicts nutritional clusters.
-
-**What it tests:**
-- Model loading (TensorFlow/Keras, RobustScaler)
-- High-protein profile prediction → Cluster 3
-- High-carb profile prediction → Cluster 2
-- Balanced profile prediction → Cluster 0
-
-**Success Criteria:**
-- All models load without errors
-- Predictions return valid cluster IDs (0-3)
-- Predictions match expected nutritional patterns
-
-**Expected Output:**
-```
---- [START] Testing AI Service ---
---- Test Case 1: High-Protein Profile ---
-Predicted Cluster ID: 3
-Predicted Cluster Name: High-Protein
-Verification successful: Profile correctly classified.
---- [END] AI Service Test ---
-```
-
----
-
-### 2. Optimization Service Tests
-
-**Command:**
-```bash
-python manage.py test_optimizer
-```
-
-**Purpose:** Validates that the optimization engine correctly solves meal composition problems.
-
-**What it tests:**
-- Basic optimization functionality
-- Nutritional constraint satisfaction
-- Recipe selection accuracy
-
-**Success Criteria:**
-- Optimal solution found
-- Nutritional targets met within tolerance
-- Recipes selected correctly
-
-**Expected Output:**
-```
---- [START] Testing Optimization Service ---
-Created a recipe pool with 500 candidate recipes.
-Successfully found an optimal plan with 3 meals:
---- [END] Optimization Service Test ---
-```
-
----
-
-### 3. Meal Composition Integration Test (Comprehensive)
-
-**Command:**
-```bash
-python manage.py test_meal_composition
-```
-
-**Purpose:** Validates the complete Daily Global Optimization pipeline with full structural and nutritional validation.
-
-**What it tests:**
-- 7-day meal plan generation
-- Meal structure integrity (Breakfast, Lunch, Dinner)
-- Recipe repetition detection (intra-day and inter-day)
-- Nutritional accuracy (weekly totals)
-- Semantic rule compliance
-
-**Success Criteria:**
-- All 21 meals generated (7 days × 3 meals)
-- Zero recipe repetition
-- Nutritional deviations <30% (critical threshold)
-- All meal structures correct
-
-**Expected Output:**
-```
-TESTING DAILY GLOBAL OPTIMIZATION SYSTEM
-[TEST] Generating 7-day meal plan...
-[PLANNER] Day 1 completed: 6 recipes total
-...
-VALIDATION SUMMARY
-✓ Meal count: 21/21 meals generated
-✓ No recipe repetition: 49 unique recipes
-✓ Validation PASSED (excellent)!
-```
-
-**Expected Execution Time:** 1-2 minutes
-
----
-
-### 4. User Scenario Tests
-
-**Command:**
-```bash
-python manage.py test_user_scenarios
-```
-
-**Purpose:** Tests realistic user personas with different nutritional requirements.
-
-**What it tests:**
-- Active adult (muscle gain): 2500 kcal, 180g protein
-- Weight loss: 1500 kcal, 120g protein
-- Balanced lifestyle: 2000 kcal, 100g protein
-
-**Success Criteria:**
-- Plans generated for all personas
-- Nutritional targets met
-- Meal variety maintained
-
----
-
-### 5. Full Pipeline Test
-
-**Command:**
-```bash
-python manage.py test_full_pipeline
-```
-
-**Purpose:** End-to-end validation of the complete system from user request to final meal plan.
-
-**What it tests:**
-- Complete system integration
-- Error handling
-- Edge case scenarios
-
----
-
-## Running the Comprehensive Test Suite
-
-### Full Suite (All Tests)
-
-```bash
-python manage.py test_backend_suite
-```
-
-### Fast Suite (Skip Slow Tests)
-
-```bash
-python manage.py test_backend_suite --skip-slow
-```
-
-This skips the comprehensive integration tests (test_meal_composition and test_full_pipeline) for faster execution.
-
----
-
-## Understanding Test Output
+## Understanding Test Results
 
 ### Success Indicators
 
-✅ **Green checkmarks**: Test passed, validation successful  
-⚠️ **Yellow warnings**: Test passed but with minor deviations (acceptable)  
-❌ **Red errors**: Test failed, critical issue detected
+- **✓ PASSED (Excellent):** All validations passed with no warnings
+- **✓ PASSED (with warnings):** All validations passed but with minor warnings
+- **✗ FAILED:** Critical errors detected (structural issues, nutritional deviations >30%)
 
-### Nutritional Accuracy Thresholds
+### Validation Thresholds
 
-The system uses realistic validation thresholds:
+**Nutritional Accuracy:**
+- **Excellent:** <10% deviation
+- **Good/Acceptable:** 10-20% deviation (no warning)
+- **Warning:** 20-30% deviation
+- **Critical Error:** >30% deviation
 
-- **Excellent**: <10% deviation (no warnings)
-- **Good**: 10-20% deviation (acceptable, no warnings)
-- **Warning**: 20-30% deviation (logged but not critical)
-- **Critical**: >30% deviation (test fails)
-
-### Final Audit Report
-
-The comprehensive test suite provides a final audit report with:
-
-- **Test Summary**: Total tests, passed, failed, warnings
-- **Pass Rate**: Percentage of successful tests
-- **Overall Status**: 
-  - ✅ ALL TESTS PASSED - System ready for production
-  - ⚠️ TESTS PASSED WITH WARNINGS - Review recommended
-  - ❌ SOME TESTS FAILED - System not ready
+**Structural Validation:**
+- All meals must have correct structure (1 Main Course for Lunch/Dinner, 1 Breakfast item for Breakfast)
+- Zero recipe repetition (intra-day and inter-day)
+- Semantic rules enforced (max 1 dessert per day, vegetable inclusion)
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### Test Hangs
+If a test hangs, check:
+- Database connection is active
+- Sufficient memory available
+- No other processes blocking resources
+- PuLP solver subprocess cleanup (check for resource leaks)
 
-1. **"No recipes found in database"**
-   - Solution: Run `python manage.py load_recipes`
+### Test Fails
+Common failure causes:
+- Database not populated (`load_recipes` not run)
+- Meal types not classified (`classify_meal_types` not run)
+- Insufficient recipes in database for test scenarios
+- Cluster mapping rules not matching expected clusters
 
-2. **"All recipes are unclassified"**
-   - Solution: Run `python manage.py classify_meal_types`
-
-3. **"AI Service failed to load models"**
-   - Solution: Ensure model files exist in `saved_models/`
-
-4. **"Insufficient recipes for Day X"**
-   - Solution: Verify database has enough recipes with classified meal types
-
-5. **"Optimization failed: Infeasible"**
-   - Solution: This is normal for some edge cases. The system should handle gracefully with fallback mechanisms.
-
-### Getting Help
-
-If tests fail unexpectedly:
-1. Check the full error output
-2. Verify all prerequisites are met
-3. Review the test logs for specific validation failures
-4. Check that the database is properly populated
+### Performance Issues
+If tests are slow:
+- Use `--skip-slow` flag for quick validation
+- Reduce `number_of_days` in test scenarios
+- Check database query performance
+- Ensure proper indexing on database
 
 ---
 
-## Test Execution Best Practices
+## Additional Test Commands
 
-1. **Run tests regularly**: Execute the test suite after major code changes
-2. **Review warnings**: Even if tests pass, review warnings for potential improvements
-3. **Check execution time**: If tests take significantly longer than expected, investigate performance issues
-4. **Maintain test data**: Ensure recipe database and classifications are up to date
-
----
-
-## Expected Test Results
-
-### Successful Test Output Example
-
+### AI Service Tests
+```bash
+python manage.py test_ai_service
 ```
-================================================================================
-BACKEND TEST SUITE - COMPREHENSIVE VALIDATION
-================================================================================
+Tests AI model loading and cluster prediction for all 4 nutritional clusters.
 
-[TEST 1/5] AI Service Tests
---------------------------------------------------------------------------------
-✓ AI Service Tests: PASSED
-
-[TEST 2/5] Optimization Service Tests
---------------------------------------------------------------------------------
-✓ Optimization Service Tests: PASSED
-
-[TEST 3/5] Meal Composition Integration Test
---------------------------------------------------------------------------------
-✓ Validation PASSED (excellent)!
-✓ Meal Composition Integration Test: PASSED
-
-[TEST 4/5] User Scenario Tests
---------------------------------------------------------------------------------
-✓ User Scenario Tests: PASSED
-
-[TEST 5/5] Full Pipeline End-to-End Test
---------------------------------------------------------------------------------
-✓ Full Pipeline Test: PASSED
-
-================================================================================
-FINAL AUDIT REPORT
-================================================================================
-
-Test Summary:
-  Total Tests: 5
-  Passed: 5
-  Failed: 0
-  Warnings: 0
-  Pass Rate: 100.0%
-
-✓ Passed Tests:
-  - AI Service Tests
-  - Optimization Service Tests
-  - Meal Composition Integration Test
-  - User Scenario Tests
-  - Full Pipeline Test
-
---------------------------------------------------------------------------------
-OVERALL STATUS: ✅ ALL TESTS PASSED - SYSTEM READY FOR PRODUCTION
-================================================================================
+### Optimization Service Tests
+```bash
+python manage.py test_optimizer
 ```
+Tests basic optimization functionality and constraint satisfaction.
+
+### User Scenario Tests
+```bash
+python manage.py test_user_scenarios
+```
+Tests realistic user personas with different nutritional profiles.
 
 ---
 
-## Next Steps
+## Maintenance
 
-After all tests pass:
+### Adding New Test Scenarios
 
-1. **Review the audit report** for any warnings
-2. **Proceed to frontend development** with confidence in backend stability
-3. **Maintain test coverage** as new features are added
-4. **Update tests** when core logic changes
+To add a new persona to `test_final_validation`:
+1. Define the user profile with realistic demographics
+2. Specify expected cluster keywords
+3. The system will automatically calculate targets and validate
+
+### Updating Validation Rules
+
+Validation thresholds and rules are defined in each test command. Modify as needed based on system requirements.
 
 ---
 
-**Last Updated:** November 2024  
-**Version:** 1.0
+## Conclusion
+
+The three-tiered test suite provides:
+- **Speed:** Quick feedback with Tier 1
+- **Depth:** Comprehensive validation with Tier 2
+- **Automation:** Full regression testing with Tier 3
+
+This architecture ensures the system is thoroughly validated at all levels while maintaining efficiency during development.
+
+---
+
+**Document Status:** ✅ Complete  
+**Last Updated:** November 2024

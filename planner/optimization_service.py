@@ -2,6 +2,7 @@
 
 import pulp
 import pandas as pd
+import random
 
 def create_single_meal(recipe_pool: list, meal_target_nutrients: dict, meal_name: str = "Meal", 
                        meal_structure: dict = None, max_protein_deviation_pct: float = 15.0):
@@ -432,7 +433,7 @@ def create_meal_plan(recipe_pool: list, target_nutrients: dict, meals_per_day: i
         return None
 
     recipes_df = pd.DataFrame(recipe_pool).set_index('id')
-    
+
     if 'meal_type' not in recipes_df.columns:
         print("[OPTIMIZER] WARNING: 'meal_type' field not found. Running without semantic constraints.")
         use_semantic_constraints = False
@@ -485,8 +486,8 @@ def create_meal_plan(recipe_pool: list, target_nutrients: dict, meals_per_day: i
             == pos_dev[nutrient] - neg_dev[nutrient]
         ), f"NutrientBalanceConstraint_{nutrient}"
 
-    prob.solve(pulp.PULP_CBC_CMD(msg=False))
-    
+    prob.solve(pulp.PULP_CBC_CMD(msg=False)) 
+
     if pulp.LpStatus[prob.status] == 'Optimal':
         selected_recipe_ids = [
             i for i in recipes_df.index if pulp.value(recipe_vars[i]) == 1
@@ -542,6 +543,38 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
     
     # Convert to list
     all_recipes = list(all_recipes_dict.values())
+    
+    # CRITICAL FIX: Limit problem size to prevent solver hangs
+    # Large problems (>800 recipes) can cause CBC solver to hang or take too long
+    # Reduce pool size intelligently while maintaining diversity
+    MAX_COMBINED_POOL_SIZE = 600  # Maximum recipes in combined optimization problem
+    if len(all_recipes) > MAX_COMBINED_POOL_SIZE:
+        print(f"[OPTIMIZER] WARNING: Combined pool size ({len(all_recipes)}) exceeds limit ({MAX_COMBINED_POOL_SIZE}). Reducing...")
+        # Reduce pool by randomly sampling while maintaining meal type diversity
+        # Group by meal and meal_type to maintain diversity
+        recipes_by_meal_type = {}
+        for recipe in all_recipes:
+            meal = meal_assignment.get(recipe['id'], 'Unknown')
+            meal_type = recipe.get('meal_type', 'Unknown')
+            key = (meal, meal_type)
+            if key not in recipes_by_meal_type:
+                recipes_by_meal_type[key] = []
+            recipes_by_meal_type[key].append(recipe)
+        
+        # Sample proportionally from each group
+        reduced_recipes = []
+        target_per_group = MAX_COMBINED_POOL_SIZE // max(len(recipes_by_meal_type), 1)
+        for key, group_recipes in recipes_by_meal_type.items():
+            if len(group_recipes) > target_per_group:
+                sampled = random.sample(group_recipes, target_per_group)
+            else:
+                sampled = group_recipes
+            reduced_recipes.extend(sampled)
+        
+        all_recipes = reduced_recipes
+        # Rebuild meal_assignment for reduced set
+        meal_assignment = {r['id']: meal_assignment.get(r['id'], 'Unknown') for r in all_recipes}
+        print(f"[OPTIMIZER] Reduced pool to {len(all_recipes)} recipes")
     
     if len(all_recipes) < 6:  # Minimum: 2 Breakfast + 2 Lunch + 2 Dinner
         print(f"[OPTIMIZER] ERROR: Insufficient recipes for Day {day_number} ({len(all_recipes)} available)")
@@ -682,64 +715,231 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
             prob += pos_dev['avg_protein_g'] <= max_protein_dev, "ProteinMaxConstraint"
     
     # === SOLVE ===
-    prob.solve(pulp.PULP_CBC_CMD(msg=False))
-    
-    status = pulp.LpStatus[prob.status]
-    
-    if status == 'Optimal':
-        # Extract selected recipes
-        selected_recipe_ids = [i for i in recipes_df.index if pulp.value(recipe_vars[i]) == 1]
+    # CRITICAL: Solve with proper resource management and timeout
+    # PuLP's CBC solver spawns subprocesses that must be properly cleaned up
+    # to prevent hangs on subsequent solves
+    # Use try-finally to guarantee cleanup even in error cases
+    # CRITICAL FIX: Add timeout to prevent infinite hangs on infeasible problems
+    result = None
+    try:
+        try:
+            # CRITICAL: Add timeout (30 seconds) to prevent infinite hangs
+            # If problem is infeasible or too complex, solver will timeout instead of hanging
+            solver = pulp.PULP_CBC_CMD(msg=False, timeLimit=30)
+            prob.solve(solver)
+            status = pulp.LpStatus[prob.status]
+            
+            # Log solver status for debugging
+            if status != 'Optimal':
+                print(f"[OPTIMIZER] Solver status for Day {day_number}: {status}")
+                if status == 'Infeasible':
+                    print(f"[OPTIMIZER] Problem is infeasible. Possible causes:")
+                    print(f"  - Nutritional targets too strict for available recipes")
+                    print(f"  - Structural constraints incompatible with recipe pool")
+                    print(f"  - Recipe pool size: {len(recipes_df)} recipes")
+        except Exception as e:
+            print(f"[OPTIMIZER] Solver exception for Day {day_number}: {e}")
+            status = 'Error'
         
-        # CRITICAL VERIFICATION: Check for duplicate recipe IDs (should never happen with binary variables)
-        unique_selected_ids = set(selected_recipe_ids)
-        if len(selected_recipe_ids) != len(unique_selected_ids):
-            print(f"[OPTIMIZER] CRITICAL ERROR: Duplicate recipe IDs detected in solution for Day {day_number}!")
-            duplicates = [rid for rid in selected_recipe_ids if selected_recipe_ids.count(rid) > 1]
-            print(f"[OPTIMIZER] Duplicate IDs: {set(duplicates)}")
-            return None
-        
-        selected_recipes = {meal: [] for meal in ['Breakfast', 'Lunch', 'Dinner']}
-        
-        # Group by assigned meal
-        for recipe_id in selected_recipe_ids:
-            meal_name = meal_assignment.get(recipe_id)
-            recipe_dict = next((r for r in all_recipes if r['id'] == recipe_id), None)
-            if recipe_dict and meal_name:
-                selected_recipes[meal_name].append(recipe_dict)
-        
-        # Ensure proper ordering: Breakfast item first, then Fruit/Drink
-        breakfast_list = selected_recipes['Breakfast']
-        breakfast_main = [r for r in breakfast_list if r['meal_type'] == 'Breakfast']
-        breakfast_complementary = [r for r in breakfast_list if r['meal_type'] in ['Fruit', 'Drink']]
-        selected_recipes['Breakfast'] = breakfast_main + breakfast_complementary
-        
-        # Calculate actual nutrients and deviations
-        all_selected = [r for r in all_recipes if r['id'] in selected_recipe_ids]
-        actual_nutrients = {
-            'calories': sum(r['avg_calories'] for r in all_selected),
-            'protein_g': sum(r['avg_protein_g'] for r in all_selected),
-            'fat_g': sum(r['avg_fat_g'] for r in all_selected),
-            'carbs_g': sum(r['avg_carbs_g'] for r in all_selected)
-        }
-        
-        deviations = {}
-        for nutrient in ['calories', 'protein_g', 'fat_g', 'carbs_g']:
-            target = daily_target_nutrients.get(nutrient, 0)
-            actual = actual_nutrients.get(nutrient, 0)
-            if target > 0:
-                deviation_pct = abs(actual - target) / target * 100
-                deviations[nutrient] = {
-                    'target': target,
-                    'actual': actual,
-                    'deviation_pct': deviation_pct
+        # Extract results BEFORE cleanup (pulp.value() requires problem object)
+        if status == 'Optimal':
+            # Extract selected recipes
+            selected_recipe_ids = [i for i in recipes_df.index if pulp.value(recipe_vars[i]) == 1]
+            
+            # CRITICAL VERIFICATION: Check for duplicate recipe IDs (should never happen with binary variables)
+            unique_selected_ids = set(selected_recipe_ids)
+            if len(selected_recipe_ids) != len(unique_selected_ids):
+                print(f"[OPTIMIZER] CRITICAL ERROR: Duplicate recipe IDs detected in solution for Day {day_number}!")
+                duplicates = [rid for rid in selected_recipe_ids if selected_recipe_ids.count(rid) > 1]
+                print(f"[OPTIMIZER] Duplicate IDs: {set(duplicates)}")
+                result = None
+            else:
+                selected_recipes = {meal: [] for meal in ['Breakfast', 'Lunch', 'Dinner']}
+                
+                # Group by assigned meal
+                for recipe_id in selected_recipe_ids:
+                    meal_name = meal_assignment.get(recipe_id)
+                    recipe_dict = next((r for r in all_recipes if r['id'] == recipe_id), None)
+                    if recipe_dict and meal_name:
+                        selected_recipes[meal_name].append(recipe_dict)
+                
+                # Ensure proper ordering: Breakfast item first, then Fruit/Drink
+                breakfast_list = selected_recipes['Breakfast']
+                breakfast_main = [r for r in breakfast_list if r['meal_type'] == 'Breakfast']
+                breakfast_complementary = [r for r in breakfast_list if r['meal_type'] in ['Fruit', 'Drink']]
+                selected_recipes['Breakfast'] = breakfast_main + breakfast_complementary
+                
+                # Calculate actual nutrients and deviations
+                all_selected = [r for r in all_recipes if r['id'] in selected_recipe_ids]
+                actual_nutrients = {
+                    'calories': sum(r['avg_calories'] for r in all_selected),
+                    'protein_g': sum(r['avg_protein_g'] for r in all_selected),
+                    'fat_g': sum(r['avg_fat_g'] for r in all_selected),
+                    'carbs_g': sum(r['avg_carbs_g'] for r in all_selected)
                 }
-        
-        result = selected_recipes.copy()
-        result['status'] = status
-        result['deviations'] = deviations
-        result['actual_nutrients'] = actual_nutrients
-        
-        return result
-    else:
-        print(f"[OPTIMIZER] No optimal solution found for Day {day_number}. Status: {status}")
-        return None
+                
+                deviations = {}
+                for nutrient in ['calories', 'protein_g', 'fat_g', 'carbs_g']:
+                    target = daily_target_nutrients.get(nutrient, 0)
+                    actual = actual_nutrients.get(nutrient, 0)
+                    if target > 0:
+                        deviation_pct = abs(actual - target) / target * 100
+                        deviations[nutrient] = {
+                            'target': target,
+                            'actual': actual,
+                            'deviation_pct': deviation_pct
+                        }
+                
+                result = selected_recipes.copy()
+                result['status'] = status
+                result['deviations'] = deviations
+                result['actual_nutrients'] = actual_nutrients
+        else:
+            print(f"[OPTIMIZER] No optimal solution found for Day {day_number}. Status: {status}")
+            # CRITICAL FIX: If infeasible, try with relaxed constraints
+            if status == 'Infeasible':
+                print(f"[OPTIMIZER] Attempting fallback: Relaxing protein constraint...")
+                # Remove strict protein deviation constraint and try again
+                # Create a new problem with relaxed constraints
+                prob_relaxed = pulp.LpProblem(f"DailyGlobalOptimization_Day{day_number}_Relaxed", pulp.LpMinimize)
+                
+                # Copy variables
+                recipe_vars_relaxed = pulp.LpVariable.dicts("Recipe", recipes_df.index, cat='Binary')
+                pos_dev_relaxed = pulp.LpVariable.dicts("PosDev", nutrients_to_optimize, lowBound=0)
+                neg_dev_relaxed = pulp.LpVariable.dicts("NegDev", nutrients_to_optimize, lowBound=0)
+                
+                # Same objective
+                prob_relaxed += (
+                    (pos_dev_relaxed['avg_calories'] + neg_dev_relaxed['avg_calories']) * calorie_weight +
+                    (pos_dev_relaxed['avg_protein_g'] + neg_dev_relaxed['avg_protein_g']) * protein_weight +
+                    (pos_dev_relaxed['avg_fat_g'] + neg_dev_relaxed['avg_fat_g']) * fat_weight +
+                    (pos_dev_relaxed['avg_carbs_g'] + neg_dev_relaxed['avg_carbs_g']) * carb_weight
+                )
+                
+                # Same structural constraints
+                prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in breakfast_items]) == 1, "Breakfast_OneItem"
+                prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in fruit_items + drink_items]) == 1, "Breakfast_OneFruitOrDrink"
+                prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in lunch_main]) == 1, "Lunch_OneMainCourse"
+                if len(lunch_complementary) > 0:
+                    prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in lunch_complementary]) >= 1, "Lunch_MinComplementary"
+                    prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in lunch_complementary]) <= 2, "Lunch_MaxComplementary"
+                prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in dinner_main]) == 1, "Dinner_OneMainCourse"
+                if len(dinner_complementary) > 0:
+                    prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in dinner_complementary]) >= 1, "Dinner_MinComplementary"
+                    prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in dinner_complementary]) <= 2, "Dinner_MaxComplementary"
+                    dessert_items = list(recipes_df[(recipes_df['meal_type'] == 'Dessert') & 
+                                                   (recipes_df['assigned_meal'] == 'Dinner')].index)
+                    if len(dessert_items) > 0:
+                        prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in dessert_items]) <= 1, "Dinner_MaxOneDessert"
+                
+                all_indices = list(recipes_df.index)
+                prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in all_indices]) >= 6, "Daily_MinRecipes"
+                prob_relaxed += pulp.lpSum([recipe_vars_relaxed[i] for i in all_indices]) <= 8, "Daily_MaxRecipes"
+                
+                # Nutritional constraints WITHOUT strict protein deviation limit
+                for nutrient in nutrients_to_optimize:
+                    total_nutrient_sum = pulp.lpSum([recipes_df.loc[i, nutrient] * recipe_vars_relaxed[i] 
+                                                     for i in recipes_df.index])
+                    if nutrient == 'avg_calories':
+                        nutrient_key = 'calories'
+                    else:
+                        nutrient_key = nutrient.replace('avg_', '')
+                    target = daily_target_nutrients.get(nutrient_key, 0)
+                    prob_relaxed += (
+                        total_nutrient_sum - target == pos_dev_relaxed[nutrient] - neg_dev_relaxed[nutrient]
+                    ), f"DailyNutrient_{nutrient_key}_Relaxed"
+                
+                # Try solving with relaxed constraints
+                try:
+                    solver_relaxed = pulp.PULP_CBC_CMD(msg=False, timeLimit=30)
+                    prob_relaxed.solve(solver_relaxed)
+                    status_relaxed = pulp.LpStatus[prob_relaxed.status]
+                    
+                    if status_relaxed == 'Optimal':
+                        print(f"[OPTIMIZER] Fallback succeeded with relaxed constraints")
+                        # Extract solution using relaxed variables
+                        selected_recipe_ids = [i for i in recipes_df.index if pulp.value(recipe_vars_relaxed[i]) == 1]
+                        unique_selected_ids = set(selected_recipe_ids)
+                        if len(selected_recipe_ids) == len(unique_selected_ids):
+                            selected_recipes = {meal: [] for meal in ['Breakfast', 'Lunch', 'Dinner']}
+                            for recipe_id in selected_recipe_ids:
+                                meal_name = meal_assignment.get(recipe_id)
+                                recipe_dict = next((r for r in all_recipes if r['id'] == recipe_id), None)
+                                if recipe_dict and meal_name:
+                                    selected_recipes[meal_name].append(recipe_dict)
+                            
+                            breakfast_list = selected_recipes['Breakfast']
+                            breakfast_main = [r for r in breakfast_list if r['meal_type'] == 'Breakfast']
+                            breakfast_complementary = [r for r in breakfast_list if r['meal_type'] in ['Fruit', 'Drink']]
+                            selected_recipes['Breakfast'] = breakfast_main + breakfast_complementary
+                            
+                            all_selected = [r for r in all_recipes if r['id'] in selected_recipe_ids]
+                            actual_nutrients = {
+                                'calories': sum(r['avg_calories'] for r in all_selected),
+                                'protein_g': sum(r['avg_protein_g'] for r in all_selected),
+                                'fat_g': sum(r['avg_fat_g'] for r in all_selected),
+                                'carbs_g': sum(r['avg_carbs_g'] for r in all_selected)
+                            }
+                            
+                            deviations = {}
+                            for nutrient in ['calories', 'protein_g', 'fat_g', 'carbs_g']:
+                                target = daily_target_nutrients.get(nutrient, 0)
+                                actual = actual_nutrients.get(nutrient, 0)
+                                if target > 0:
+                                    deviation_pct = abs(actual - target) / target * 100
+                                    deviations[nutrient] = {
+                                        'target': target,
+                                        'actual': actual,
+                                        'deviation_pct': deviation_pct
+                                    }
+                            
+                            result = selected_recipes.copy()
+                            result['status'] = 'Optimal_Relaxed'
+                            result['deviations'] = deviations
+                            result['actual_nutrients'] = actual_nutrients
+                            
+                            # Cleanup relaxed problem
+                            prob_relaxed.variables.clear()
+                            prob_relaxed.constraints.clear()
+                            del prob_relaxed
+                            del recipe_vars_relaxed
+                            del pos_dev_relaxed
+                            del neg_dev_relaxed
+                        else:
+                            print(f"[OPTIMIZER] Fallback solution has duplicate IDs")
+                            result = None
+                    else:
+                        print(f"[OPTIMIZER] Fallback also failed. Status: {status_relaxed}")
+                        result = None
+                        # Cleanup
+                        try:
+                            prob_relaxed.variables.clear()
+                            prob_relaxed.constraints.clear()
+                            del prob_relaxed
+                        except:
+                            pass
+                except Exception as e:
+                    print(f"[OPTIMIZER] Fallback solver exception: {e}")
+                    result = None
+            else:
+                result = None
+    finally:
+        # CRITICAL: Explicit cleanup of problem object to release subprocess resources
+        # This MUST happen after extracting results, even if there's an error
+        # PuLP's CBC solver spawns subprocesses that must be properly terminated
+        # to prevent resource leaks causing hangs on subsequent solves
+        try:
+            # Clear problem data structures to release memory and subprocess handles
+            prob.variables.clear()
+            prob.constraints.clear()
+            # Force deletion to trigger garbage collection
+            del prob
+            # Also clean up recipe_vars dictionary to release memory
+            del recipe_vars
+            del pos_dev
+            del neg_dev
+        except Exception:
+            # Ignore cleanup errors - better to continue than crash
+            pass
+    
+    return result
