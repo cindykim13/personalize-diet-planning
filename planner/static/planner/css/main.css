@@ -1,0 +1,589 @@
+/**
+ * CNutrition - Main Stylesheet (Brand Refresh)
+ * Implements official colour palette and refined layout styling.
+ */
+
+:root {
+    /* Brand Colours */
+    --brand-mint: #A8E6CF;
+    --brand-sage: #7CB188;
+    --brand-sky: #56A8C7;
+    --brand-cobalt: #5F8BC4;
+    --brand-deep: #1d3557;
+    --brand-white: #ffffff;
+    --brand-ice: #f5fbff;
+    --text-primary: #1e2a38;
+    --text-secondary: #506273;
+    --border-soft: rgba(255, 255, 255, 0.6);
+
+    /* Gradients */
+    --gradient-background: linear-gradient(120deg, #A8E6CF 0%, #7CB188 33%, #56A8C7 66%, #5F8BC4 100%);
+    --gradient-action: linear-gradient(135deg, #56A8C7 0%, #5F8BC4 100%);
+
+    /* Shadows & Transitions */
+    --shadow-sm: 0 6px 18px rgba(30, 42, 56, 0.08);
+    --shadow-md: 0 12px 30px rgba(30, 42, 56, 0.12);
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--gradient-background);
+    min-height: 100vh;
+}
+
+/* ============================================
+   NAVIGATION BAR
+   ============================================ */
+
+.navbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-sm);
+    padding: 0.75rem 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 1px solid var(--border-soft);
+    overflow: visible; /* Allow logo to overflow navbar bounds */
+    min-height: 80px; /* Maintain slim navbar height */
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: flex-start; /* Align to top to allow overflow */
+    gap: 0;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: transform var(--transition-fast);
+    position: relative;
+    z-index: 10;
+    padding: 0;
+    margin: 0;
+}
+
+.navbar-brand:hover {
+    transform: translateY(-1px);
+}
+
+.navbar-logo-container {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    position: relative;
+    padding-top: 0.5rem; /* Small top padding for visual balance */
+    padding-bottom: 0.5rem;
+}
+
+/* Large, prominent logo using scale transform and absolute positioning */
+.navbar-logo {
+    height: 180px; /* Large base size */
+    width: auto;
+    transform: scale(1);
+    filter: drop-shadow(0 16px 32px rgba(31, 42, 56, 0.18));
+    transition: transform var(--transition-fast), filter var(--transition-fast);
+    position: relative;
+    z-index: 11;
+    object-fit: contain;
+    /* Allow logo to extend beyond navbar vertically */
+    margin-top: -40px; /* Pull logo up to extend above navbar */
+    margin-bottom: -40px; /* Pull logo down to extend below navbar */
+}
+
+.navbar-logo:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 20px 40px rgba(31, 42, 56, 0.25));
+}
+
+/* Large, prominent brand name */
+.navbar-brand-name {
+    height: 120px; /* Significantly larger */
+    width: auto;
+    transform: scale(1);
+    filter: drop-shadow(0 14px 28px rgba(31, 42, 56, 0.15));
+    transition: transform var(--transition-fast), filter var(--transition-fast);
+    position: relative;
+    z-index: 11;
+    object-fit: contain;
+    /* Allow brand name to extend beyond navbar */
+    margin-top: -35px;
+    margin-bottom: -35px;
+}
+
+.navbar-brand-name:hover {
+    transform: scale(1.03);
+    filter: drop-shadow(0 18px 36px rgba(31, 42, 56, 0.20));
+}
+
+.navbar-nav {
+    display: flex;
+    list-style: none;
+    gap: 1.25rem;
+    align-items: center;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    transition: color var(--transition-normal), background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.nav-link:hover,
+.nav-link:focus {
+    color: var(--brand-cobalt);
+    background-color: rgba(168, 230, 207, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(86, 168, 199, 0.15);
+}
+
+.nav-link.primary {
+    background: var(--gradient-action);
+    color: var(--brand-white);
+    box-shadow: 0 12px 24px rgba(86, 168, 199, 0.25);
+}
+
+.nav-link.primary:hover,
+.nav-link.primary:focus {
+    background: linear-gradient(135deg, #5F8BC4 0%, #56A8C7 100%);
+    color: var(--brand-white);
+}
+
+.nav-link.username {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+}
+
+/* ============================================
+   GLOBAL CONTAINERS
+   ============================================ */
+
+/* Add padding to top of container to account for logo overflow */
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 2.5rem 2rem 0 2rem; /* Extra top padding for logo overflow */
+}
+
+.content-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
+    padding: 2.5rem;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(16px);
+}
+
+.messages {
+    margin-bottom: 1.5rem;
+}
+
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    margin-bottom: 1rem;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-success {
+    border-left: 4px solid var(--brand-sage);
+    color: var(--text-primary);
+}
+
+.alert-error {
+    border-left: 4px solid #ed6a5a;
+    color: #7a1a20;
+}
+
+.alert-info {
+    border-left: 4px solid var(--brand-sky);
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-primary {
+    padding: 0.9rem 2.75rem;
+    background: var(--gradient-action);
+    color: var(--brand-white);
+    box-shadow: 0 16px 30px rgba(86, 168, 199, 0.25);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 32px rgba(95, 139, 196, 0.35);
+}
+
+.btn-secondary {
+    padding: 0.9rem 2.5rem;
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--text-primary);
+    border: 1px solid rgba(95, 139, 196, 0.3);
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--brand-cobalt);
+    transform: translateY(-2px);
+}
+
+.btn-large {
+    font-size: 1.05rem;
+    padding-left: 3rem;
+    padding-right: 3rem;
+}
+
+/* ============================================
+   AUTH CONTAINERS
+   ============================================ */
+
+.auth-container {
+    max-width: 860px;
+    margin: 3.5rem auto;
+    padding: 0 1.5rem;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 28px;
+    padding: 3rem;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(16px);
+}
+
+.auth-header {
+    text-align: left;
+    margin-bottom: 2.25rem;
+}
+
+.auth-header h1 {
+    font-size: 2.15rem;
+    color: var(--text-primary);
+    margin-bottom: 0.4rem;
+}
+
+.auth-subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.auth-footer {
+    margin-top: 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.auth-link {
+    color: var(--brand-cobalt);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.auth-link:hover,
+.auth-link:focus {
+    color: var(--brand-sky);
+}
+
+/* ============================================
+   FORMS
+   ============================================ */
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.55rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.form-input,
+input.form-input,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="tel"] {
+    width: 100%;
+    padding: 0.85rem 1.05rem;
+    border: 1px solid rgba(95, 139, 196, 0.25);
+    border-radius: 14px;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.92);
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), background-color var(--transition-normal);
+}
+
+.form-input:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+input[type="tel"]:focus {
+    outline: none;
+    border-color: rgba(86, 168, 199, 0.65);
+    box-shadow: 0 0 0 4px rgba(86, 168, 199, 0.15);
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.form-help-text {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.form-error {
+    margin-top: 0.4rem;
+    color: #c62828;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.form-error-global {
+    padding: 0.85rem 1rem;
+    background: rgba(237, 106, 90, 0.12);
+    border-radius: 12px;
+}
+
+.form-actions {
+    margin-top: 2.25rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.form-actions.dual {
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+/* ============================================
+   PASSWORD STRENGTH
+   ============================================ */
+
+.password-strength-container {
+    margin-top: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(168, 230, 207, 0.18);
+    border-radius: 16px;
+    display: none;
+}
+
+.password-strength-container.active {
+    display: block;
+}
+
+.password-strength-title {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+.password-requirements {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.password-requirement {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.password-requirement.valid {
+    color: var(--brand-sage);
+}
+
+.password-requirement .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 3px 8px rgba(30, 42, 56, 0.08);
+}
+
+.password-requirement.valid .icon::before {
+    content: '✓';
+    color: var(--brand-sage);
+}
+
+.password-requirement.invalid .icon::before {
+    content: '•';
+    color: var(--text-secondary);
+}
+
+.password-strength-meter {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.password-strength-bar {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    transition: width var(--transition-normal), background-color var(--transition-normal);
+}
+
+.password-strength-bar.weak {
+    width: 25%;
+    background: #ed6a5a;
+}
+
+.password-strength-bar.medium {
+    width: 60%;
+    background: #ffb347;
+}
+
+.password-strength-bar.strong {
+    width: 100%;
+    background: var(--brand-sage);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 900px) {
+    .navbar {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0.75rem 1.5rem;
+        min-height: auto;
+        overflow: visible;
+    }
+
+    .navbar-brand {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .navbar-logo-container {
+        justify-content: center;
+    }
+
+    .navbar-logo {
+        height: 140px;
+        margin-top: -30px;
+        margin-bottom: -30px;
+    }
+
+    .navbar-brand-name {
+        height: 90px;
+        margin-top: -25px;
+        margin-bottom: -25px;
+    }
+
+    .navbar-nav {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .auth-card {
+        padding: 2.25rem 1.75rem;
+    }
+
+    .container {
+        padding-top: 2rem; /* Less padding on mobile */
+    }
+}
+
+@media (max-width: 640px) {
+    .navbar {
+        padding: 0.5rem 1rem;
+    }
+
+    .navbar-logo {
+        height: 100px;
+        margin-top: -20px;
+        margin-bottom: -20px;
+    }
+
+    .navbar-brand-name {
+        height: 65px;
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .navbar-logo-container {
+        gap: 0.75rem;
+    }
+
+    .container {
+        padding-top: 1.5rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-actions.dual {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-center {
+    text-align: center;
+}
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+

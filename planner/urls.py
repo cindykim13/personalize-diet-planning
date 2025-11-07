@@ -1,0 +1,16 @@
+"""
+URL configuration for planner app.
+"""
+from django.urls import path
+from . import views
+
+app_name = 'planner'
+
+urlpatterns = [
+    path('', views.dashboard_view, name='dashboard'),
+    path('register/', views.register_personal_view, name='register'),
+    path('register/credentials/', views.register_credentials_view, name='register_credentials'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+]
+

@@ -23,7 +23,7 @@ class Command(BaseCommand):
         if total_count == 0:
             self.stdout.write(self.style.ERROR("Not enough recipes in the database to run the test."))
             return
-        
+
         if unclassified_count == total_count:
             self.stdout.write(self.style.ERROR(f"All {total_count} recipes are unclassified. Please run 'python manage.py classify_meal_types' first."))
             return
@@ -114,10 +114,10 @@ class Command(BaseCommand):
                     self.stdout.write(f"\n  {meal_name} ({len(meal_recipes)} recipes):")
                     for recipe in meal_recipes:
                         self.stdout.write(f"    - {recipe['name']} [{recipe.get('meal_type', 'Unknown')}] (Calories: {recipe['avg_calories']:.2f})")
-                        plan_summary['total_calories'] += recipe['avg_calories']
-                        plan_summary['total_protein_g'] += recipe['avg_protein_g']
-                        plan_summary['total_fat_g'] += recipe['avg_fat_g']
-                        plan_summary['total_carbs_g'] += recipe['avg_carbs_g']
+                plan_summary['total_calories'] += recipe['avg_calories']
+                plan_summary['total_protein_g'] += recipe['avg_protein_g']
+                plan_summary['total_fat_g'] += recipe['avg_fat_g']
+                plan_summary['total_carbs_g'] += recipe['avg_carbs_g']
             
             self.stdout.write("\n--- Plan Summary vs. Target ---")
             self.stdout.write(f"           Target -> Plan")

@@ -121,6 +121,58 @@ def _create_default_recipe(recipe_id: int, name: str, meal_type: str, nutritiona
     }
 
 
+def _ensure_unique_recipe_for_day(recipe_template: dict, meal_type: str, used_recipe_ids: set, day_number: int) -> dict:
+    """
+    Helper function to ensure recipe uniqueness across days in default plans.
+    
+    If the template recipe is already used, finds an alternative from the database.
+    If no alternative found, returns a modified template with unique ID (for negative IDs).
+    
+    :param recipe_template: Template recipe dictionary
+    :param meal_type: Required meal type
+    :param used_recipe_ids: Set of already-used recipe IDs
+    :param day_number: Current day number (for unique ID generation)
+    :return: Recipe dictionary (either template or alternative)
+    """
+    # If template is not yet used, return it
+    if recipe_template['id'] not in used_recipe_ids:
+        return recipe_template
+    
+    # Try to find an alternative recipe from database
+    try:
+        alt_recipe = Recipe.objects.filter(
+            meal_type=meal_type
+        ).exclude(
+            id__in=used_recipe_ids
+        ).exclude(
+            meal_type='Unknown'
+        ).order_by('?').first()
+        
+        if alt_recipe:
+            return {
+                'id': alt_recipe.id,
+                'name': alt_recipe.name,
+                'meal_type': alt_recipe.meal_type,
+                'avg_calories': alt_recipe.avg_calories,
+                'avg_protein_g': alt_recipe.avg_protein_g,
+                'avg_fat_g': alt_recipe.avg_fat_g,
+                'avg_carbs_g': alt_recipe.avg_carbs_g
+            }
+    except Exception:
+        pass  # If database query fails, fall through to unique ID modification
+    
+    # If no alternative found and template has negative ID, make it unique per day
+    if recipe_template['id'] < 0:
+        unique_id = recipe_template['id'] - (day_number * 1000)
+        unique_recipe = recipe_template.copy()
+        unique_recipe['id'] = unique_id
+        unique_recipe['name'] = f"{recipe_template['name']} (Day {day_number})"
+        return unique_recipe
+    
+    # Last resort: return template as-is (may cause repetition, but better than crashing)
+    return recipe_template
+
+
 def _get_balanced_default_plan(number_of_days: int) -> dict:
     """
     Returns a balanced, maintenance-focused default plan.
@@ -187,15 +239,29 @@ def _get_balanced_default_plan(number_of_days: int) -> dict:
         {'calories': 150, 'protein_g': 3, 'fat_g': 12, 'carbs_g': 8}
     )
     
-    default_day_structure = {
-        'Breakfast': [breakfast_main],
-        'Lunch': [lunch_main],
-        'Dinner': [dinner_main, dinner_side]  # Note: 3 items total (main + side)
-    }
+    # CRITICAL FIX: Default plans must use DIFFERENT recipes for each day to avoid repetition
+    used_recipe_ids = set()
     
-    # Repeat for requested number of days
     for day in range(1, number_of_days + 1):
-        plan[f"Day {day}"] = default_day_structure.copy()
+        # Ensure uniqueness for each recipe type
+        day_breakfast = _ensure_unique_recipe_for_day(breakfast_main, 'Breakfast', used_recipe_ids, day)
+        day_lunch = _ensure_unique_recipe_for_day(lunch_main, 'Main Course', used_recipe_ids, day)
+        day_dinner = _ensure_unique_recipe_for_day(dinner_main, 'Main Course', used_recipe_ids, day)
+        day_side = _ensure_unique_recipe_for_day(dinner_side, 'Salad', used_recipe_ids, day)
+        
+        day_structure = {
+            'Breakfast': [day_breakfast],
+            'Lunch': [day_lunch],
+            'Dinner': [day_dinner, day_side]
+        }
+        
+        # Track used recipes
+        used_recipe_ids.add(day_breakfast['id'])
+        used_recipe_ids.add(day_lunch['id'])
+        used_recipe_ids.add(day_dinner['id'])
+        used_recipe_ids.add(day_side['id'])
+        
+        plan[f"Day {day}"] = day_structure
     
     return plan
 
@@ -265,14 +331,27 @@ def _get_high_protein_default_plan(number_of_days: int) -> dict:
         {'calories': 850, 'protein_g': 60, 'fat_g': 40, 'carbs_g': 65}
     )
     
-    default_day_structure = {
-        'Breakfast': [breakfast_main, breakfast_fruit],
-        'Lunch': [lunch_main],
-        'Dinner': [dinner_main]
-    }
+    # CRITICAL FIX: Ensure uniqueness across days
+    used_recipe_ids = set()
     
     for day in range(1, number_of_days + 1):
-        plan[f"Day {day}"] = default_day_structure.copy()
+        day_breakfast = _ensure_unique_recipe_for_day(breakfast_main, 'Breakfast', used_recipe_ids, day)
+        day_breakfast_fruit = _ensure_unique_recipe_for_day(breakfast_fruit, 'Fruit', used_recipe_ids, day)
+        day_lunch = _ensure_unique_recipe_for_day(lunch_main, 'Main Course', used_recipe_ids, day)
+        day_dinner = _ensure_unique_recipe_for_day(dinner_main, 'Main Course', used_recipe_ids, day)
+        
+        day_structure = {
+            'Breakfast': [day_breakfast, day_breakfast_fruit],
+            'Lunch': [day_lunch],
+            'Dinner': [day_dinner]
+        }
+        
+        used_recipe_ids.add(day_breakfast['id'])
+        used_recipe_ids.add(day_breakfast_fruit['id'])
+        used_recipe_ids.add(day_lunch['id'])
+        used_recipe_ids.add(day_dinner['id'])
+        
+        plan[f"Day {day}"] = day_structure
     
     return plan
 
@@ -362,14 +441,31 @@ def _get_weight_loss_default_plan(number_of_days: int) -> dict:
         {'calories': 120, 'protein_g': 2, 'fat_g': 0.2, 'carbs_g': 28}
     )
     
-    default_day_structure = {
-        'Breakfast': [breakfast_main, breakfast_fruit],
-        'Lunch': [lunch_main, lunch_side],
-        'Dinner': [dinner_main, dinner_side]
-    }
+    # CRITICAL FIX: Ensure uniqueness across days
+    used_recipe_ids = set()
     
     for day in range(1, number_of_days + 1):
-        plan[f"Day {day}"] = default_day_structure.copy()
+        day_breakfast = _ensure_unique_recipe_for_day(breakfast_main, 'Breakfast', used_recipe_ids, day)
+        day_breakfast_fruit = _ensure_unique_recipe_for_day(breakfast_fruit, 'Fruit', used_recipe_ids, day)
+        day_lunch = _ensure_unique_recipe_for_day(lunch_main, 'Main Course', used_recipe_ids, day)
+        day_lunch_side = _ensure_unique_recipe_for_day(lunch_side, 'Side Dish', used_recipe_ids, day)
+        day_dinner = _ensure_unique_recipe_for_day(dinner_main, 'Main Course', used_recipe_ids, day)
+        day_dinner_side = _ensure_unique_recipe_for_day(dinner_side, 'Side Dish', used_recipe_ids, day)
+        
+        day_structure = {
+            'Breakfast': [day_breakfast, day_breakfast_fruit],
+            'Lunch': [day_lunch, day_lunch_side],
+            'Dinner': [day_dinner, day_dinner_side]
+        }
+        
+        used_recipe_ids.add(day_breakfast['id'])
+        used_recipe_ids.add(day_breakfast_fruit['id'])
+        used_recipe_ids.add(day_lunch['id'])
+        used_recipe_ids.add(day_lunch_side['id'])
+        used_recipe_ids.add(day_dinner['id'])
+        used_recipe_ids.add(day_dinner_side['id'])
+        
+        plan[f"Day {day}"] = day_structure
     
     return plan
 

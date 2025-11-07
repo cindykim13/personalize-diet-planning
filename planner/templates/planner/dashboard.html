@@ -1,0 +1,44 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}Dashboard - CNutrition{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <div class="dashboard-welcome">
+        <h1>Welcome, {{ user.first_name|default:user.username }}!</h1>
+        <p>Your personalized meal planning dashboard</p>
+    </div>
+
+    <div>
+        <h2 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.5rem;">Quick Actions</h2>
+        <div class="dashboard-actions">
+            <div class="dashboard-card">
+                <h3>Create New Plan</h3>
+                <p>Generate a personalized meal plan based on your goals, preferences, and nutritional needs.</p>
+                <a href="#" class="btn btn-primary">Create Plan</a>
+            </div>
+
+            <div class="dashboard-card">
+                <h3>View History</h3>
+                <p>Browse your previously generated meal plans and track your nutritional journey.</p>
+                <a href="#" class="btn btn-secondary">View History</a>
+            </div>
+
+            <div class="dashboard-card">
+                <h3>Profile Settings</h3>
+                <p>Update your profile information, dietary preferences, and personal goals.</p>
+                <a href="#" class="btn btn-secondary">Settings</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-info">
+        <h3>Getting Started</h3>
+        <p>
+            Welcome to CNutrition! To get started, click "Create Plan" to generate your first personalized meal plan.
+            Our AI-powered system will create a customized meal plan based on your goals, preferences, and nutritional needs.
+            Each plan is carefully crafted to help you achieve your health and fitness objectives.
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -99,6 +99,14 @@ class UserProfile(models.Model):
         verbose_name='Gender'
     )
     
+    phone_number = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        verbose_name='Phone Number',
+        help_text='Optional: Enter your phone number (e.g., +1234567890)'
+    )
+    
     height_cm = models.FloatField(
         null=True,
         blank=True,

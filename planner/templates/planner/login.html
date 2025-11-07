@@ -1,0 +1,68 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}Login - CNutrition{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="content-card">
+        <div class="auth-header">
+            <h1>Welcome Back</h1>
+            <p>Login to access your personalized meal plans</p>
+        </div>
+
+        <form method="post" action="{% url 'planner:login' %}">
+            {% csrf_token %}
+            {% if next %}
+                <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
+            <!-- Username Field -->
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}" class="form-label">
+                    Username
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <div class="form-error">
+                        {% for error in form.username.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}" class="form-label">
+                    Password
+                </label>
+                {{ form.password }}
+                {% if form.password.errors %}
+                    <div class="form-error">
+                        {% for error in form.password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Non-field Errors (invalid credentials, etc.) -->
+            {% if form.non_field_errors %}
+                <div class="alert alert-error">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Login</button>
+            </div>
+        </form>
+
+        <div class="form-help">
+            <p>Don't have an account? <a href="{% url 'planner:register' %}">Register here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

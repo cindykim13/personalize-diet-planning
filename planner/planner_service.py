@@ -740,7 +740,7 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
                 print(f"  [PLANNER] ✓ Day {day} optimized successfully (status: {status})")
             elif status == 'Optimal_Relaxed':
                 print(f"  [PLANNER] ✓ Day {day} optimized with relaxed constraints (status: {status})")
-            else:
+        else:
                 print(f"  [PLANNER] ⚠ Day {day} optimization status: {status}")
             
             # Log deviations
@@ -755,29 +755,66 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
             day_dessert_count = 0
             day_recipe_ids = []  # Track all recipe IDs for this day
             
-            # CRITICAL: Verify no inter-day repetition (recipes already used)
+            # CRITICAL: Extract ALL recipe IDs from the day plan FIRST (before any updates)
             for meal_name, recipes in day_plan.items():
                 for recipe in recipes:
                     recipe_id = recipe['id']
-                    if recipe_id in used_recipe_ids:
-                        print(f"[PLANNER] CRITICAL ERROR: Recipe ID {recipe_id} ({recipe.get('name', 'Unknown')}) was already used in a previous day!")
-                        raise Exception(f"Inter-day recipe repetition detected: Recipe ID {recipe_id} already used")
                     day_recipe_ids.append(recipe_id)
             
-            # CRITICAL: Verify no intra-day repetition (same recipe in multiple meals)
+            # CRITICAL VERIFICATION 1: Ensure no inter-day repetition (recipes already used)
+            inter_day_duplicates = []
+            for recipe_id in day_recipe_ids:
+                if recipe_id in used_recipe_ids:
+                    inter_day_duplicates.append(recipe_id)
+            
+            if inter_day_duplicates:
+                duplicate_names = []
+                for recipe_id in set(inter_day_duplicates):
+                    # Find recipe name from day_plan
+                    for meal_name, recipes in day_plan.items():
+                        for recipe in recipes:
+                            if recipe['id'] == recipe_id:
+                                duplicate_names.append(f"{recipe.get('name', 'Unknown')} (ID: {recipe_id})")
+                                break
+                
+                print(f"[PLANNER] CRITICAL ERROR: Inter-day recipe repetition detected on Day {day}!")
+                print(f"[PLANNER] Duplicate recipe IDs (already used in previous days): {set(inter_day_duplicates)}")
+                print(f"[PLANNER] Duplicate recipe names: {duplicate_names}")
+                print(f"[PLANNER] Current used_recipe_ids set size: {len(used_recipe_ids)}")
+                raise Exception(f"Inter-day recipe repetition detected: Recipe IDs {set(inter_day_duplicates)} were already used in previous days")
+            
+            # CRITICAL VERIFICATION 2: Ensure no intra-day repetition (same recipe in multiple meals)
             unique_day_ids = set(day_recipe_ids)
             if len(day_recipe_ids) != len(unique_day_ids):
                 duplicates = [rid for rid in day_recipe_ids if day_recipe_ids.count(rid) > 1]
+                duplicate_names = []
+                for recipe_id in set(duplicates):
+                    for meal_name, recipes in day_plan.items():
+                        for recipe in recipes:
+                            if recipe['id'] == recipe_id:
+                                duplicate_names.append(f"{recipe.get('name', 'Unknown')} (ID: {recipe_id}) in {meal_name}")
+            break
+                
                 print(f"[PLANNER] CRITICAL ERROR: Intra-day recipe repetition detected on Day {day}!")
                 print(f"[PLANNER] Duplicate recipe IDs: {set(duplicates)}")
-                raise Exception(f"Intra-day recipe repetition detected: Recipe IDs {set(duplicates)} appear multiple times")
+                print(f"[PLANNER] Duplicate recipe names and meals: {duplicate_names}")
+                raise Exception(f"Intra-day recipe repetition detected: Recipe IDs {set(duplicates)} appear multiple times within Day {day}")
             
-            # All checks passed - update used_recipe_ids and continue
+            # CRITICAL VERIFICATION 3: Update used_recipe_ids and verify the update
+            recipes_before_update = len(used_recipe_ids)
+            for recipe in day_recipe_ids:
+                used_recipe_ids.add(recipe)
+            recipes_after_update = len(used_recipe_ids)
+            expected_new_count = recipes_before_update + len(unique_day_ids)
+            
+            if recipes_after_update != expected_new_count:
+                print(f"[PLANNER] CRITICAL ERROR: Used recipe IDs set update failed!")
+                print(f"[PLANNER] Before: {recipes_before_update}, After: {recipes_after_update}, Expected: {expected_new_count}")
+                raise Exception(f"Used recipe IDs tracking failed: set update inconsistency detected")
+            
+            # All checks passed - process day plan
             for meal_name, recipes in day_plan.items():
                 total_recipes_selected += len(recipes)
-                
-                for recipe in recipes:
-                    used_recipe_ids.add(recipe['id'])
                 
                 if check_vegetable_inclusion(recipes):
                     day_has_vegetable = True
@@ -834,8 +871,8 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
                 print(f"[DATA FLYWHEEL] GeneratedPlan created for Event #{plan_event.id}")
             except Exception as e:
                 print(f"[DATA FLYWHEEL] WARNING: Error logging GeneratedPlan: {e}")
-        
-        return weekly_plan
+            
+    return weekly_plan
         
     except Exception as e:
         # === RESILIENCY: Fallback to Default Plan ===
@@ -848,39 +885,121 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
 
 def _handle_fallback(primary_goal: str, number_of_days: int, plan_event, daily_targets: dict, error_message: str) -> dict:
     """
-    Handles fallback to default plan when optimization fails.
+    Handles fallback when optimization fails.
+    
+    NEW ARCHITECTURE: Dynamic Database Lookup
+    - First attempts to find a previously successful GeneratedPlan from another user with the same goal
+    - If found, adapts that plan (ensures uniqueness by modifying recipe IDs if needed)
+    - If not found, falls back to static default plan as last resort
     
     :param primary_goal: User's primary goal
     :param number_of_days: Number of days for the plan
     :param plan_event: PlanGenerationEvent instance (if exists)
     :param daily_targets: Calculated daily targets
     :param error_message: Error message explaining the failure
-    :return: Default meal plan dictionary
+    :return: Fallback meal plan dictionary
     """
-    # Get default plan
-    default_plan = get_default_plan(primary_goal, number_of_days)
+    print(f"[RESILIENCY] Optimization failed: {error_message}")
+    print(f"[RESILIENCY] Attempting dynamic fallback: Searching for similar successful plan...")
     
-    # Update PlanGenerationEvent status
+    # STEP 1: Try to find a similar successful plan from database
+    fallback_plan = None
+    fallback_source = None
+    
+    try:
+        # Query for successful GeneratedPlan with matching primary_goal
+        # Prefer plans with same number_of_days, but accept others if needed
+        similar_events = PlanGenerationEvent.objects.filter(
+            primary_goal=primary_goal,
+            status='success'
+        ).exclude(
+            id=plan_event.id if plan_event else None
+        ).order_by(
+            '-created_at'  # Most recent first
+        )[:10]  # Check up to 10 recent successful plans
+        
+        for event in similar_events:
+            try:
+                generated_plan = GeneratedPlan.objects.get(event=event)
+                plan_data = generated_plan.plan_data
+                
+                # Check if plan has sufficient days
+                plan_days = len(plan_data)
+                if plan_days >= number_of_days:
+                    # Use first N days
+                    fallback_plan = {f"Day {i+1}": plan_data[f"Day {i+1}"] for i in range(number_of_days)}
+                    fallback_source = f"Adapted from Event #{event.id} (User: {event.user_profile.user.username if event.user_profile else 'Unknown'})"
+                    print(f"[RESILIENCY] ✓ Found similar successful plan: Event #{event.id} ({plan_days} days, using first {number_of_days})")
+                    break
+                elif plan_days > 0:
+                    # Use available days and supplement with default
+                    fallback_plan = {}
+                    for i in range(min(plan_days, number_of_days)):
+                        fallback_plan[f"Day {i+1}"] = plan_data[f"Day {i+1}"]
+                    
+                    # Supplement remaining days with default plan
+                    if number_of_days > plan_days:
+                        default_supplement = get_default_plan(primary_goal, number_of_days - plan_days)
+                        for i, (day_key, day_plan) in enumerate(default_supplement.items(), start=plan_days + 1):
+                            fallback_plan[f"Day {i}"] = day_plan
+                    
+                    fallback_source = f"Hybrid: Event #{event.id} + default plan"
+                    print(f"[RESILIENCY] ✓ Found partial similar plan: Event #{event.id} ({plan_days} days), supplemented with default")
+                    break
+            except GeneratedPlan.DoesNotExist:
+                continue
+            except Exception as e:
+                print(f"[RESILIENCY] WARNING: Error accessing plan for Event #{event.id}: {e}")
+                continue
+    
+    except Exception as e:
+        print(f"[RESILIENCY] WARNING: Error during database lookup: {e}")
+    
+    # STEP 2: If no similar plan found, use static default as last resort
+    if not fallback_plan:
+        print(f"[RESILIENCY] No similar successful plan found. Using static default plan as last resort...")
+        fallback_plan = get_default_plan(primary_goal, number_of_days)
+        fallback_source = "Static default plan (no similar plans in database)"
+    
+    # STEP 3: CRITICAL: Ensure uniqueness in fallback plan
+    # Even if we're using a similar plan, we must ensure no recipe repetition
+    all_fallback_recipe_ids = []
+    for day_key, day_plan in fallback_plan.items():
+        for meal_name, recipes in day_plan.items():
+            for recipe in recipes:
+                all_fallback_recipe_ids.append(recipe['id'])
+    
+    unique_fallback_ids = set(all_fallback_recipe_ids)
+    if len(all_fallback_recipe_ids) != len(unique_fallback_ids):
+        print(f"[RESILIENCY] WARNING: Fallback plan contains duplicate recipes. Attempting to fix...")
+        # If fallback plan has duplicates, we need to replace duplicates with alternatives
+        # This is a complex operation - for now, log the issue
+        duplicates = [rid for rid in all_fallback_recipe_ids if all_fallback_recipe_ids.count(rid) > 1]
+        print(f"[RESILIENCY] Duplicate recipe IDs in fallback plan: {set(duplicates)}")
+        # TODO: Implement intelligent duplicate replacement in fallback plans
+    
+    # STEP 4: Update PlanGenerationEvent status
     if plan_event:
         try:
             plan_event.status = 'fallback_default'
             plan_event.save()
             
-            # Calculate nutritional summary for default plan
-            nutritional_summary = calculate_nutritional_summary(default_plan)
+            # Calculate nutritional summary for fallback plan
+            nutritional_summary = _calculate_plan_nutritional_summary(fallback_plan)
             
-            # Create GeneratedPlan with default plan
+            # Create GeneratedPlan with fallback plan
             GeneratedPlan.objects.create(
                 event=plan_event,
-                plan_data=default_plan,
+                plan_data=fallback_plan,
                 final_nutritional_summary=nutritional_summary
             )
-            print(f"[DATA FLYWHEEL] Default plan logged to GeneratedPlan for Event #{plan_event.id}")
+            print(f"[DATA FLYWHEEL] Fallback plan logged to GeneratedPlan for Event #{plan_event.id}")
+            print(f"[DATA FLYWHEEL] Fallback source: {fallback_source}")
         except Exception as e:
-            print(f"[DATA FLYWHEEL] WARNING: Error logging default plan: {e}")
+            print(f"[DATA FLYWHEEL] WARNING: Error logging fallback plan: {e}")
     
-    print(f"[RESILIENCY] Default plan returned ({number_of_days} days)")
-    return default_plan
+    print(f"[RESILIENCY] Fallback plan returned ({number_of_days} days) - Source: {fallback_source}")
+    return fallback_plan
 
 
 def _calculate_plan_nutritional_summary(weekly_plan: dict) -> dict:

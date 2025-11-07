@@ -1,0 +1,108 @@
+{% extends 'planner/base.html' %}
+
+{% load static %}
+
+{% block title %}Register – Account Credentials{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/auth.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-progress">
+            <div class="progress-step completed">
+                <span class="progress-index">1</span>
+                <span class="progress-label">Personal Details</span>
+            </div>
+            <div class="progress-separator"></div>
+            <div class="progress-step active">
+                <span class="progress-index">2</span>
+                <span class="progress-label">Account Credentials</span>
+            </div>
+        </div>
+
+        <div class="auth-header">
+            <h1>Secure your account</h1>
+            <p class="auth-subtitle">Choose a memorable username and a strong password.</p>
+        </div>
+
+        <form method="post" action="{% url 'planner:register_credentials' %}" class="wizard-form">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                {{ form.username }}
+                {% if form.username.help_text %}
+                    <small class="form-help-text">{{ form.username.help_text }}</small>
+                {% endif %}
+                {% if form.username.errors %}
+                    <div class="form-error">{% for error in form.username.errors %}{{ error }}{% endfor %}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.password1.id_for_label }}" class="form-label">{{ form.password1.label }}</label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}
+                    <div class="form-error">{% for error in form.password1.errors %}{{ error }}{% endfor %}</div>
+                {% endif %}
+
+                <div id="password-strength-container" class="password-strength-container">
+                    <div class="password-strength-title">Password requirements</div>
+                    <ul class="password-requirements">
+                        <li class="password-requirement invalid" id="req-length">
+                            <span class="icon"></span>
+                            <span>At least 8 characters</span>
+                        </li>
+                        <li class="password-requirement invalid" id="req-uppercase">
+                            <span class="icon"></span>
+                            <span>One uppercase letter (A–Z)</span>
+                        </li>
+                        <li class="password-requirement invalid" id="req-number">
+                            <span class="icon"></span>
+                            <span>One number (0–9)</span>
+                        </li>
+                        <li class="password-requirement invalid" id="req-special">
+                            <span class="icon"></span>
+                            <span>One special character (!@#$%^&*)</span>
+                        </li>
+                    </ul>
+                    <div class="password-strength-meter">
+                        <div id="password-strength-bar" class="password-strength-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
+                {{ form.password2 }}
+                {% if form.password2.help_text %}
+                    <small class="form-help-text">{{ form.password2.help_text }}</small>
+                {% endif %}
+                {% if form.password2.errors %}
+                    <div class="form-error">{% for error in form.password2.errors %}{{ error }}{% endfor %}</div>
+                {% endif %}
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="form-error form-error-global">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-actions dual">
+                <a href="{% url 'planner:register' %}" class="btn btn-secondary">Back</a>
+                <button type="submit" class="btn btn-primary btn-large">Create Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'planner/js/password_checker.js' %}"></script>
+{% endblock %}

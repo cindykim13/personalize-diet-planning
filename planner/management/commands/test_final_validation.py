@@ -774,23 +774,37 @@ class Command(BaseCommand):
             if weekly_plan_fail:
                 self.stdout.write(self.style.SUCCESS(f"  ✓ Plan returned (fallback should have been used)"))
                 
-                # Check if it's a default plan (has negative recipe IDs)
-                is_default_plan = False
+                # Check if plan contains default recipes (negative IDs) or is from dynamic fallback
+                has_default_recipes = False
+                has_real_recipes = False
                 for day_key, day_plan in weekly_plan_fail.items():
                     for meal_name, recipes in day_plan.items():
                         for recipe in recipes:
-                            if recipe.get('id', 0) < 0:
-                                is_default_plan = True
-                                break
-                        if is_default_plan:
-                            break
-                    if is_default_plan:
-                        break
+                            recipe_id = recipe.get('id', 0)
+                            if recipe_id < 0:
+                                has_default_recipes = True
+                            else:
+                                has_real_recipes = True
                 
-                if is_default_plan:
-                    self.stdout.write(self.style.SUCCESS(f"  ✓ Default plan detected (negative recipe IDs)"))
+                # Validate dynamic fallback: Either should use real recipes (from DB) OR unique default recipes
+                if has_real_recipes:
+                    self.stdout.write(self.style.SUCCESS(f"  ✓ Dynamic fallback detected: Plan uses real recipes from database"))
+                elif has_default_recipes:
+                    self.stdout.write(self.style.SUCCESS(f"  ✓ Static default plan detected (negative recipe IDs)"))
+                    # Verify uniqueness even in static default plan
+                    all_recipe_ids = []
+                    for day_key, day_plan in weekly_plan_fail.items():
+                        for meal_name, recipes in day_plan.items():
+                            for recipe in recipes:
+                                all_recipe_ids.append(recipe.get('id', 0))
+                    unique_ids = len(set(all_recipe_ids))
+                    total_ids = len(all_recipe_ids)
+                    if unique_ids == total_ids:
+                        self.stdout.write(self.style.SUCCESS(f"  ✓ Default plan has unique recipes: {unique_ids}/{total_ids} unique"))
+                    else:
+                        self.stdout.write(self.style.WARNING(f"  ⚠ Default plan has duplicate recipes: {unique_ids}/{total_ids} unique"))
                 else:
-                    self.stdout.write(self.style.WARNING(f"  ⚠ Plan returned but may not be default plan"))
+                    self.stdout.write(self.style.WARNING(f"  ⚠ Plan returned but recipe IDs unclear"))
                 
                 # Verify database logging
                 try:
