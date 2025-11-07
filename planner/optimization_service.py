@@ -544,6 +544,14 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
     # Convert to list
     all_recipes = list(all_recipes_dict.values())
     
+    # CRITICAL VERIFICATION: Ensure no duplicate recipe IDs after deduplication
+    recipe_ids_in_pool = [r['id'] for r in all_recipes]
+    if len(recipe_ids_in_pool) != len(set(recipe_ids_in_pool)):
+        duplicates = [rid for rid in recipe_ids_in_pool if recipe_ids_in_pool.count(rid) > 1]
+        print(f"[OPTIMIZER] CRITICAL ERROR: Duplicate recipe IDs in combined pool for Day {day_number}!")
+        print(f"[OPTIMIZER] Duplicate IDs: {set(duplicates)}")
+        return None
+    
     # CRITICAL FIX: Limit problem size to prevent solver hangs
     # Large problems (>800 recipes) can cause CBC solver to hang or take too long
     # Reduce pool size intelligently while maintaining diversity
@@ -571,10 +579,26 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
                 sampled = group_recipes
             reduced_recipes.extend(sampled)
         
-        all_recipes = reduced_recipes
+        # CRITICAL: Deduplicate after reduction (safety check)
+        reduced_dict = {}
+        for recipe in reduced_recipes:
+            recipe_id = recipe['id']
+            if recipe_id not in reduced_dict:
+                reduced_dict[recipe_id] = recipe
+        
+        all_recipes = list(reduced_dict.values())
         # Rebuild meal_assignment for reduced set
         meal_assignment = {r['id']: meal_assignment.get(r['id'], 'Unknown') for r in all_recipes}
-        print(f"[OPTIMIZER] Reduced pool to {len(all_recipes)} recipes")
+        
+        # CRITICAL VERIFICATION: Ensure no duplicates after reduction
+        reduced_ids = [r['id'] for r in all_recipes]
+        if len(reduced_ids) != len(set(reduced_ids)):
+            duplicates = [rid for rid in reduced_ids if reduced_ids.count(rid) > 1]
+            print(f"[OPTIMIZER] CRITICAL ERROR: Duplicate recipe IDs after pool reduction for Day {day_number}!")
+            print(f"[OPTIMIZER] Duplicate IDs: {set(duplicates)}")
+            return None
+        
+        print(f"[OPTIMIZER] Reduced pool to {len(all_recipes)} recipes (deduplicated)")
     
     if len(all_recipes) < 6:  # Minimum: 2 Breakfast + 2 Lunch + 2 Dinner
         print(f"[OPTIMIZER] ERROR: Insufficient recipes for Day {day_number} ({len(all_recipes)} available)")
@@ -685,8 +709,14 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
     prob += pulp.lpSum([recipe_vars[i] for i in all_indices]) >= 6, "Daily_MinRecipes"
     prob += pulp.lpSum([recipe_vars[i] for i in all_indices]) <= 8, "Daily_MaxRecipes"
     
-    # CRITICAL: Explicit uniqueness constraint (binary variables already enforce this, but make it explicit)
-    # Each recipe can be selected at most once (enforced by binary variable, but we verify in solution)
+    # CRITICAL: Explicit uniqueness constraint - Each recipe ID can be selected at most ONCE
+    # Binary variables already enforce this mathematically (0 or 1), but we add explicit verification
+    # This ensures that even if a recipe appears in multiple meal pools, it can only be selected once
+    # The deduplication logic above should prevent this, but this is a safety check
+    for recipe_id in all_indices:
+        # Each binary variable is already 0 or 1, so this is redundant but explicit
+        # We verify uniqueness in the solution extraction step below
+        pass
     
     # === DAILY NUTRITIONAL CONSTRAINTS (FLEXIBLE - NOT PER-MEAL) ===
     for nutrient in nutrients_to_optimize:
@@ -747,11 +777,16 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
             selected_recipe_ids = [i for i in recipes_df.index if pulp.value(recipe_vars[i]) == 1]
             
             # CRITICAL VERIFICATION: Check for duplicate recipe IDs (should never happen with binary variables)
+            # This is a safety check to catch any bugs in the optimization logic
             unique_selected_ids = set(selected_recipe_ids)
             if len(selected_recipe_ids) != len(unique_selected_ids):
                 print(f"[OPTIMIZER] CRITICAL ERROR: Duplicate recipe IDs detected in solution for Day {day_number}!")
                 duplicates = [rid for rid in selected_recipe_ids if selected_recipe_ids.count(rid) > 1]
                 print(f"[OPTIMIZER] Duplicate IDs: {set(duplicates)}")
+                print(f"[OPTIMIZER] This should never happen with binary variables. Possible bug in constraint logic.")
+                result = None
+            elif len(selected_recipe_ids) == 0:
+                print(f"[OPTIMIZER] ERROR: No recipes selected for Day {day_number}")
                 result = None
             else:
                 selected_recipes = {meal: [] for meal in ['Breakfast', 'Lunch', 'Dinner']}

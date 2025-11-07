@@ -7,10 +7,18 @@ from planner.ai_service import MealPlannerService
 from planner.models import Recipe 
 
 class Command(BaseCommand):
-    help = 'Tests the MealPlannerService by predicting a sample nutritional profile'
+    help = 'Tests the MealPlannerService by predicting a sample nutritional profile. NOTE: This tests the AI service directly. The main pipeline uses rule-based cluster mapping instead of AI prediction.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("--- [START] Testing AI Service ---")
+        self.stdout.write("=" * 80)
+        self.stdout.write("AI SERVICE UNIT TEST")
+        self.stdout.write("=" * 80)
+        self.stdout.write("Purpose: Test AI model loading and cluster prediction functionality")
+        self.stdout.write("Note: The main pipeline (planner_service.py) uses rule-based cluster")
+        self.stdout.write("      mapping instead of AI prediction. This test validates that the")
+        self.stdout.write("      AI models can still load and function correctly for future use.")
+        self.stdout.write("=" * 80)
+        self.stdout.write("\n--- [START] Testing AI Service ---")
         
         meal_planner_service = MealPlannerService.get_instance()
 

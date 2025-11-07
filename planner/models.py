@@ -7,7 +7,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Recipe(models.Model):
     """
     Master library of all processed and labeled recipes.
-    Standalone table storing recipe information, nutritional features, and cluster labels.
+    Standalone table containing recipe data with nutritional features and cluster labels.
     """
     # Thông tin định danh và hiển thị
     name = models.CharField(max_length=500)
@@ -102,7 +102,7 @@ class UserProfile(models.Model):
     height_cm = models.FloatField(
         null=True,
         blank=True,
-        validators=[MinValueValidator(50.0), MaxValueValidator(300.0)],
+        validators=[MinValueValidator(50.0), MaxValueValidator(250.0)],
         verbose_name='Height (cm)'
     )
     
@@ -150,10 +150,10 @@ class UserProfile(models.Model):
 
 class PlanGenerationEvent(models.Model):
     """
-    Log of every plan generation request. Core of the Data Flywheel.
-    Many-to-One relationship with UserProfile.
+    A log of every plan generation request. This is the core of our Data Flywheel.
+    Many-to-One relationship with UserProfile. One UserProfile can have many PlanGenerationEvent instances.
     """
-    # Primary goal choices
+    # Goal choices
     PRIMARY_GOAL_CHOICES = [
         ('lose_weight', 'Lose Weight'),
         ('maintain', 'Maintain Weight'),
@@ -179,7 +179,7 @@ class PlanGenerationEvent(models.Model):
     # Primary Key (AutoField)
     id = models.AutoField(primary_key=True)
     
-    # Foreign Key to UserProfile
+    # Many-to-One relationship with UserProfile
     user_profile = models.ForeignKey(
         UserProfile,
         on_delete=models.CASCADE,
@@ -203,10 +203,13 @@ class PlanGenerationEvent(models.Model):
     pace = models.CharField(
         max_length=20,
         choices=PACE_CHOICES,
+        default='moderate',
         verbose_name='Pace'
     )
     
     weight_kg_at_request = models.FloatField(
+        null=True,
+        blank=True,
         validators=[MinValueValidator(20.0), MaxValueValidator(300.0)],
         verbose_name='Weight (kg) at Request'
     )
@@ -214,11 +217,12 @@ class PlanGenerationEvent(models.Model):
     # Calculated targets (stored as JSON)
     calculated_targets = models.JSONField(
         default=dict,
+        blank=True,
         help_text='Calculated nutritional targets (calories, protein_g, fat_g, carbs_g)',
         verbose_name='Calculated Targets'
     )
     
-    # AI/Cluster prediction
+    # Cluster prediction
     predicted_cluster_name = models.CharField(
         max_length=100,
         null=True,
@@ -254,7 +258,7 @@ class PlanGenerationEvent(models.Model):
 class GeneratedPlan(models.Model):
     """
     Stores the successful output of a plan generation event.
-    One-to-One relationship with PlanGenerationEvent.
+    One-to-One relationship with PlanGenerationEvent. Each successful PlanGenerationEvent has exactly one GeneratedPlan.
     """
     # One-to-One relationship with PlanGenerationEvent (acts as Primary Key)
     event = models.OneToOneField(
@@ -275,6 +279,7 @@ class GeneratedPlan(models.Model):
     # Final nutritional summary
     final_nutritional_summary = models.JSONField(
         default=dict,
+        blank=True,
         help_text='Actual nutritional totals of the generated plan',
         verbose_name='Final Nutritional Summary'
     )

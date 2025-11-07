@@ -2,7 +2,9 @@
 
 from django.core.management.base import BaseCommand
 from planner.planner_service import generate_full_meal_plan, calculate_nutritional_targets_from_profile, map_goal_to_cluster
-from planner.models import Recipe
+from planner.models import Recipe, UserProfile, PlanGenerationEvent, GeneratedPlan
+from django.contrib.auth.models import User
+from django.utils import timezone
 import gc
 import time
 
@@ -33,106 +35,197 @@ class Command(BaseCommand):
         # Get cluster mapping for validation
         cluster_map = dict(Recipe.objects.values_list('cluster', 'cluster_name').distinct())
         
-        # === DEFINE DIVERSE USER PERSONAS ===
-        # Each persona is designed to test different nutritional clusters
-        # Note: The system uses goal-based macro distributions:
-        #   - lose_weight: 40% protein, 30% fat, 30% carbs
-        #   - maintain: 20% protein, 30% fat, 50% carbs
-        #   - gain_muscle: 40% protein, 20% fat, 40% carbs
-        # Personas are reverse-engineered to produce macro ratios that map to specific clusters
+        # === DEFINE COMPREHENSIVE USER PERSONAS ===
+        # Each persona is scientifically designed to test a specific path in the decision matrix
+        # and includes full personal details for realistic database logging
+        # 
+        # DECISION MATRIX PATHS BEING TESTED:
+        # 1. gain_muscle → Cluster 3 (High-Protein) - Persona 1
+        # 2. lose_weight + balanced → Cluster 3 (High-Protein) - Persona 2
+        # 3. lose_weight + low_carb → Cluster 1 (High-Fat / Low-Carb) - Persona 3
+        # 4. lose_weight + low_fat → Cluster 2 (High-Carb / Low-Fat / Sugary) - Persona 4
+        # 5. gain_weight → Cluster 2 (High-Carb / Low-Fat / Sugary) - Persona 5
+        # 6. maintain + balanced → Cluster 0 (Balanced / High-Fiber) - Persona 6
+        # 7. maintain + low_carb → Cluster 1 (High-Fat / Low-Carb) - Persona 7
+        # 8. maintain + low_fat → Cluster 2 (High-Carb / Low-Fat / Sugary) - Persona 8
         
         personas = [
             {
-                'name': 'High-Protein / Muscle Gain',
+                'first_name': 'Ben',
+                'last_name': 'Carter',
                 'user_profile': {
-                    # System macro distribution for gain_muscle: 40% Protein, 20% Fat, 40% Carbs
-                    # Reverse-engineered: Young, active male with muscle gain goal
-                    # This should produce ~40% protein ratio, mapping to High-Protein cluster
                     'age': 25,
                     'gender': 'male',
-                    'height_cm': 165.0,
-                    'weight_kg': 55.0,
-                    'activity_level': 'very_active',
+                    'height_cm': 180.0,
+                    'weight_kg': 78.0,
+                    'activity_level': 'active',
                     'primary_goal': 'gain_muscle',
+                    'dietary_style': 'balanced',  # Not used for gain_muscle, but included for consistency
                     'pace': 'moderate',
                     'number_of_days': 7,
                     'allergies': '',
                     'dislikes': ''
                 },
-                'target_macro_ratios': {'protein': 0.40, 'fat': 0.20, 'carbs': 0.40},
+                'expected_cluster_id': 3,
                 'expected_cluster_keywords': ['High-Protein'],
-                'description': 'Active young male with muscle gain goal → 40% protein → High-Protein cluster'
+                'description': 'Male athlete with muscle gain goal → Cluster 3 (High-Protein)'
             },
             {
-                'name': 'Balanced / DASH Diet Style',
+                'first_name': 'Alice',
+                'last_name': 'Chen',
                 'user_profile': {
-                    # System macro distribution for maintain: 20% Protein, 30% Fat, 50% Carbs
-                    # Reverse-engineered: Middle-aged person with maintenance goal
-                    # This should produce balanced ratios, mapping to Balanced/High-Fiber cluster
-                    'age': 40,
-                    'gender': 'female',
-                    'height_cm': 155.0,
-                    'weight_kg': 49.0,
-                    'activity_level': 'moderate',
-                    'primary_goal': 'maintain',
-                    'pace': 'moderate',
-                    'number_of_days': 3,
-                    'allergies': '',
-                    'dislikes': ''
-                },
-                'target_macro_ratios': {'protein': 0.20, 'fat': 0.30, 'carbs': 0.50},
-                'expected_cluster_keywords': ['Balanced'],
-                'description': 'Balanced maintenance diet → 50% carbs, balanced macros → Balanced cluster'
-            },
-            {
-                'name': 'High-Protein / Weight Loss',
-                'user_profile': {
-                    # System macro distribution for lose_weight: 40% Protein, 30% Fat, 30% Carbs
-                    # Reverse-engineered: Person with weight loss goal
-                    # This should produce high protein ratio, mapping to High-Protein cluster
-                    'age': 35,
-                    'gender': 'female',
-                    'height_cm': 160.0,
-                    'weight_kg': 70.0,
-                    'activity_level': 'moderate',
-                    'primary_goal': 'lose_weight',
-                    'pace': 'moderate',
-                    'number_of_days': 3,
-                    'allergies': '',
-                    'dislikes': ''
-                },
-                'target_macro_ratios': {'protein': 0.40, 'fat': 0.30, 'carbs': 0.30},
-                'expected_cluster_keywords': ['High-Protein'],
-                'description': 'Weight loss profile → 40% protein → High-Protein cluster'
-            },
-            {
-                'name': 'Active Maintenance / High-Carb',
-                'user_profile': {
-                    # System macro distribution for maintain: 20% Protein, 30% Fat, 50% Carbs
-                    # Reverse-engineered: Active person with maintenance goal
-                    # This should produce 50% carbs (highest in system), potentially mapping to High-Carb cluster
                     'age': 30,
+                    'gender': 'female',
+                    'height_cm': 163.0,
+                    'weight_kg': 57.0,
+                    'activity_level': 'sedentary',
+                    'primary_goal': 'lose_weight',
+                    'dietary_style': 'balanced',  # lose_weight + balanced → Cluster 3
+                    'pace': 'mild',
+                    'number_of_days': 7,
+                    'allergies': '',
+                    'dislikes': ''
+                },
+                'expected_cluster_id': 3,
+                'expected_cluster_keywords': ['High-Protein'],
+                'description': 'Female office worker with weight loss goal (balanced) → Cluster 3 (High-Protein)'
+            },
+            {
+                'first_name': 'Charles',
+                'last_name': 'Davis',
+                'user_profile': {
+                    'age': 45,
                     'gender': 'male',
                     'height_cm': 175.0,
-                    'weight_kg': 70.0,
-                    'activity_level': 'active',
-                    'primary_goal': 'maintain',
-                    'pace': 'moderate',
-                    'number_of_days': 3,
+                    'weight_kg': 90.0,
+                    'activity_level': 'light',
+                    'primary_goal': 'lose_weight',
+                    'dietary_style': 'low_carb',  # lose_weight + low_carb → Cluster 1
+                    'pace': 'fast',
+                    'number_of_days': 7,
                     'allergies': '',
                     'dislikes': ''
                 },
-                'target_macro_ratios': {'protein': 0.20, 'fat': 0.30, 'carbs': 0.50},
-                'expected_cluster_keywords': ['Balanced', 'High-Carb'],
-                'description': 'Active maintenance → 50% carbs (system max) → Balanced or High-Carb cluster'
+                'expected_cluster_id': 1,
+                'expected_cluster_keywords': ['High-Fat', 'Low-Carb'],
+                'description': 'Keto-style weight loss → Cluster 1 (High-Fat / Low-Carb)'
+            },
+            {
+                'first_name': 'Emma',
+                'last_name': 'Foster',
+                'user_profile': {
+                    'age': 28,
+                    'gender': 'female',
+                    'height_cm': 165.0,
+                    'weight_kg': 62.0,
+                    'activity_level': 'moderate',
+                    'primary_goal': 'lose_weight',
+                    'dietary_style': 'low_fat',  # lose_weight + low_fat → Cluster 2
+                    'pace': 'moderate',
+                    'number_of_days': 7,
+                    'allergies': '',
+                    'dislikes': ''
+                },
+                'expected_cluster_id': 2,
+                'expected_cluster_keywords': ['High-Carb', 'Low-Fat', 'Sugary'],
+                'description': 'Low-fat weight loss → Cluster 2 (High-Carb / Low-Fat / Sugary)'
+            },
+            {
+                'first_name': 'Frank',
+                'last_name': 'Garcia',
+                'user_profile': {
+                    'age': 22,
+                    'gender': 'male',
+                    'height_cm': 175.0,
+                    'weight_kg': 65.0,
+                    'activity_level': 'moderate',
+                    'primary_goal': 'gain_weight',  # gain_weight → Cluster 2
+                    'dietary_style': 'balanced',  # Not used for gain_weight, but included for consistency
+                    'pace': 'moderate',
+                    'number_of_days': 7,
+                    'allergies': '',
+                    'dislikes': ''
+                },
+                'expected_cluster_id': 2,
+                'expected_cluster_keywords': ['High-Carb', 'Low-Fat', 'Sugary'],
+                'description': 'Underweight individual with weight gain goal → Cluster 2 (High-Carb / Low-Fat / Sugary)'
+            },
+            {
+                'first_name': 'Diana',
+                'last_name': 'Evans',
+                'user_profile': {
+                    'age': 32,
+                    'gender': 'female',
+                    'height_cm': 168.0,
+                    'weight_kg': 50.0,
+                    'activity_level': 'very_active',
+                    'primary_goal': 'maintain',
+                    'dietary_style': 'balanced',  # maintain + balanced → Cluster 0
+                    'pace': 'moderate',
+                    'number_of_days': 7,
+                    'allergies': '',
+                    'dislikes': ''
+                },
+                'expected_cluster_id': 0,
+                'expected_cluster_keywords': ['Balanced', 'High-Fiber'],
+                'description': 'Marathon runner with maintenance goal (balanced) → Cluster 0 (Balanced / High-Fiber)'
+            },
+            {
+                'first_name': 'George',
+                'last_name': 'Harris',
+                'user_profile': {
+                    'age': 38,
+                    'gender': 'male',
+                    'height_cm': 178.0,
+                    'weight_kg': 85.0,
+                    'activity_level': 'moderate',
+                    'primary_goal': 'maintain',
+                    'dietary_style': 'low_carb',  # maintain + low_carb → Cluster 1
+                    'pace': 'moderate',
+                    'number_of_days': 7,
+                    'allergies': '',
+                    'dislikes': ''
+                },
+                'expected_cluster_id': 1,
+                'expected_cluster_keywords': ['High-Fat', 'Low-Carb'],
+                'description': 'Keto maintenance → Cluster 1 (High-Fat / Low-Carb)'
+            },
+            {
+                'first_name': 'Helen',
+                'last_name': 'Ivanov',
+                'user_profile': {
+                    'age': 29,
+                    'gender': 'female',
+                    'height_cm': 162.0,
+                    'weight_kg': 55.0,
+                    'activity_level': 'very_active',
+                    'primary_goal': 'maintain',
+                    'dietary_style': 'low_fat',  # maintain + low_fat → Cluster 2
+                    'pace': 'moderate',
+                    'number_of_days': 7,
+                    'allergies': '',
+                    'dislikes': ''
+                },
+                'expected_cluster_id': 2,
+                'expected_cluster_keywords': ['High-Carb', 'Low-Fat', 'Sugary'],
+                'description': 'Endurance athlete with low-fat maintenance → Cluster 2 (High-Carb / Low-Fat / Sugary)'
             }
         ]
+        
+        # Helper function to generate persona identifier for logging
+        def get_persona_identifier(persona):
+            """Generate a descriptive identifier for a persona using first_name, last_name, and profile data."""
+            first = persona.get('first_name', 'Unknown')
+            last = persona.get('last_name', 'Unknown')
+            goal = persona.get('user_profile', {}).get('primary_goal', 'unknown')
+            return f"{first} {last} ({goal})"
         
         persona_results = []
         
         for persona_idx, persona in enumerate(personas, 1):
+            persona_id = get_persona_identifier(persona)
             self.stdout.write("\n" + "=" * 80)
-            self.stdout.write(f"PERSONA {persona_idx}/{len(personas)}: {persona['name']}")
+            self.stdout.write(f"PERSONA {persona_idx}/{len(personas)}: {persona_id}")
             self.stdout.write("=" * 80)
             self.stdout.write(f"Description: {persona['description']}")
             self.stdout.write(f"\n[USER PROFILE]")
@@ -144,6 +237,30 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Allergies: {persona['user_profile']['allergies']}")
             if persona['user_profile'].get('dislikes'):
                 self.stdout.write(f"  Dislikes: {persona['user_profile']['dislikes']}")
+            
+            # === CREATE USER AND USERPROFILE FOR DATABASE LOGGING ===
+            self.stdout.write(f"\n[DATABASE SETUP]")
+            try:
+                # Create test user for this persona with full details
+                username = f"test_{persona.get('first_name', '').lower()}_{persona.get('last_name', '').lower()}_{int(timezone.now().timestamp())}"
+                user = User.objects.create_user(
+                    username=username,
+                    email=f"{persona.get('first_name', '').lower()}.{persona.get('last_name', '').lower()}@test.com",
+                    password='test_password_123',
+                    first_name=persona.get('first_name', ''),
+                    last_name=persona.get('last_name', '')
+                )
+                self.stdout.write(f"  ✓ Created test user: {username} ({persona.get('first_name', '')} {persona.get('last_name', '')})")
+                
+                # UserProfile will be created automatically by generate_full_meal_plan
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"  ✗ Failed to create test user: {e}"))
+                persona_results.append({
+                    'persona': persona_id,
+                    'status': 'FAILED',
+                    'error': f'User creation failed: {e}'
+                })
+                continue
             
             # === PART 1: Calculate Nutritional Targets ===
             self.stdout.write(f"\n[PART 1: USER REQUEST ANALYZER]")
@@ -163,16 +280,13 @@ class Command(BaseCommand):
                 
                 self.stdout.write(f"  Daily Targets: {daily_targets}")
                 self.stdout.write(f"  Actual Macro Ratios: Protein {actual_protein_ratio*100:.1f}%, Fat {actual_fat_ratio*100:.1f}%, Carbs {actual_carbs_ratio*100:.1f}%")
-                
-                # Compare with target ratios
-                target_ratios = persona.get('target_macro_ratios', {})
-                if target_ratios:
-                    self.stdout.write(f"  Target Macro Ratios: Protein {target_ratios.get('protein', 0)*100:.0f}%, Fat {target_ratios.get('fat', 0)*100:.0f}%, Carbs {target_ratios.get('carbs', 0)*100:.0f}%")
                     
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"  ✗ Failed to calculate targets: {e}"))
+                # Cleanup user
+                user.delete()
                 persona_results.append({
-                    'persona': persona['name'],
+                    'persona': persona_id,
                     'status': 'FAILED',
                     'error': f'Target calculation failed: {e}'
                 })
@@ -181,30 +295,46 @@ class Command(BaseCommand):
             # === PART 2: Rule-Based Cluster Mapping ===
             self.stdout.write(f"\n[PART 2: SEMANTIC CLUSTER MAPPING]")
             primary_goal = persona['user_profile'].get('primary_goal', 'maintain')
-            predicted_cluster = map_goal_to_cluster(primary_goal)
+            dietary_style = persona['user_profile'].get('dietary_style', 'balanced')
+            predicted_cluster = map_goal_to_cluster(primary_goal, dietary_style)
             predicted_cluster_name = cluster_map.get(predicted_cluster, "Unknown")
             
             self.stdout.write(f"  Primary Goal: {primary_goal}")
+            self.stdout.write(f"  Dietary Style: {dietary_style}")
             self.stdout.write(f"  Rule-Based Cluster Selection: {predicted_cluster} ({predicted_cluster_name})")
-            self.stdout.write(f"  Mapping Logic: primary_goal='{primary_goal}' → cluster={predicted_cluster}")
+            self.stdout.write(f"  Mapping Logic: primary_goal='{primary_goal}', dietary_style='{dietary_style}' → cluster={predicted_cluster}")
             
             # Verify cluster selection matches expectation
-            cluster_match = any(keyword in predicted_cluster_name for keyword in persona['expected_cluster_keywords'])
-            if cluster_match:
-                self.stdout.write(self.style.SUCCESS(f"  ✓ Cluster selection matches expected: {persona['expected_cluster_keywords']}"))
-            else:
-                self.stdout.write(self.style.WARNING(f"  ⚠ Cluster selection ({predicted_cluster_name}) differs from expected {persona['expected_cluster_keywords']}"))
+            expected_cluster_id = persona.get('expected_cluster_id', -1)
+            cluster_id_match = (predicted_cluster == expected_cluster_id)
+            cluster_keyword_match = any(keyword in predicted_cluster_name for keyword in persona['expected_cluster_keywords'])
             
-            # === PART 3 & 4: Generate Meal Plan ===
+            if cluster_id_match:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Cluster ID matches expected: {predicted_cluster} (expected {expected_cluster_id})"))
+            else:
+                self.stdout.write(self.style.ERROR(f"  ✗ Cluster ID mismatch: got {predicted_cluster}, expected {expected_cluster_id}"))
+            
+            if cluster_keyword_match:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Cluster name matches expected keywords: {persona['expected_cluster_keywords']}"))
+            else:
+                self.stdout.write(self.style.WARNING(f"  ⚠ Cluster name ({predicted_cluster_name}) doesn't match expected keywords {persona['expected_cluster_keywords']}"))
+            
+            # === PART 3 & 4: Generate Meal Plan with Database Logging ===
             self.stdout.write(f"\n[PART 3 & 4: GLOBAL DAILY OPTIMIZER & ORCHESTRATOR]")
+            plan_event_id_before = PlanGenerationEvent.objects.count()
+            generated_plan_count_before = GeneratedPlan.objects.count()
+            
             try:
-                weekly_plan = generate_full_meal_plan(persona['user_profile'])
+                # Call with user_id to enable database logging
+                weekly_plan = generate_full_meal_plan(persona['user_profile'], user_id=user.id)
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"  ✗ Failed to generate meal plan: {e}"))
                 import traceback
                 self.stdout.write(traceback.format_exc())
+                # Cleanup user
+                user.delete()
                 persona_results.append({
-                    'persona': persona['name'],
+                    'persona': persona_id,
                     'status': 'FAILED',
                     'error': f'Plan generation failed: {e}',
                     'targets_calculated': daily_targets,
@@ -214,8 +344,10 @@ class Command(BaseCommand):
             
             if not weekly_plan:
                 self.stdout.write(self.style.ERROR(f"  ✗ Failed to generate meal plan (returned None)"))
+                # Cleanup user
+                user.delete()
                 persona_results.append({
-                    'persona': persona['name'],
+                    'persona': persona_id,
                     'status': 'FAILED',
                     'error': 'Plan generation returned None',
                     'targets_calculated': daily_targets,
@@ -223,15 +355,133 @@ class Command(BaseCommand):
                 })
                 continue
             
+            # === DATABASE VALIDATION ===
+            self.stdout.write(f"\n[DATABASE VALIDATION]")
+            try:
+                # Verify UserProfile was created/updated
+                user_profile_obj = UserProfile.objects.get(user=user)
+                self.stdout.write(self.style.SUCCESS(f"  ✓ UserProfile found for user {user.username}"))
+                self.stdout.write(f"    - Gender: {user_profile_obj.gender}")
+                self.stdout.write(f"    - Height: {user_profile_obj.height_cm} cm")
+                self.stdout.write(f"    - Activity Level: {user_profile_obj.activity_level}")
+                
+                # Verify PlanGenerationEvent was created
+                plan_events = PlanGenerationEvent.objects.filter(user_profile=user_profile_obj).order_by('-created_at')
+                if plan_events.exists():
+                    plan_event = plan_events.first()
+                    self.stdout.write(self.style.SUCCESS(f"  ✓ PlanGenerationEvent #{plan_event.id} created"))
+                    self.stdout.write(f"    - Status: {plan_event.status}")
+                    self.stdout.write(f"    - Primary Goal: {plan_event.primary_goal}")
+                    self.stdout.write(f"    - Predicted Cluster: {plan_event.predicted_cluster_name}")
+                    self.stdout.write(f"    - Calculated Targets: {plan_event.calculated_targets}")
+                    
+                    # Verify GeneratedPlan was created
+                    try:
+                        generated_plan = GeneratedPlan.objects.get(event=plan_event)
+                        self.stdout.write(self.style.SUCCESS(f"  ✓ GeneratedPlan created for Event #{plan_event.id}"))
+                        self.stdout.write(f"    - Plan Data: {len(generated_plan.plan_data)} days")
+                        self.stdout.write(f"    - Nutritional Summary: {generated_plan.final_nutritional_summary}")
+                        
+                        # Verify plan_data matches returned plan
+                        if generated_plan.plan_data == weekly_plan:
+                            self.stdout.write(self.style.SUCCESS(f"  ✓ Plan data in database matches returned plan"))
+                        else:
+                            self.stdout.write(self.style.WARNING(f"  ⚠ Plan data mismatch (may be due to serialization)"))
+                    except GeneratedPlan.DoesNotExist:
+                        self.stdout.write(self.style.ERROR(f"  ✗ GeneratedPlan not found for Event #{plan_event.id}"))
+                else:
+                    self.stdout.write(self.style.ERROR(f"  ✗ PlanGenerationEvent not found for user {user.username}"))
+            except UserProfile.DoesNotExist:
+                self.stdout.write(self.style.ERROR(f"  ✗ UserProfile not found for user {user.username}"))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"  ✗ Database validation error: {e}"))
+            
+            # === COMPREHENSIVE UNIQUENESS VALIDATION ===
+            self.stdout.write(f"\n[UNIQUENESS VALIDATION]")
+            self.stdout.write(f"{'=' * 80}")
+            
+            # Initialize validation tracking
+            validation_errors = []
+            validation_warnings = []
+            
+            # Collect ALL recipe IDs from ALL meals across ALL days
+            all_recipe_ids_list = []  # List to preserve order and detect duplicates
+            all_recipe_ids_set = set()  # Set for uniqueness check
+            day_recipe_ids = {}  # Track recipe IDs per day for intra-day validation
+            
+            for day_key in sorted(weekly_plan.keys()):
+                day_recipe_ids[day_key] = []
+                day_plan = weekly_plan[day_key]
+                
+                for meal_name, recipes in day_plan.items():
+                    for recipe in recipes:
+                        recipe_id = recipe['id']
+                        all_recipe_ids_list.append(recipe_id)
+                        all_recipe_ids_set.add(recipe_id)
+                        day_recipe_ids[day_key].append(recipe_id)
+            
+            # CRITICAL: Verify global uniqueness (no recipe appears more than once in entire plan)
+            total_recipes = len(all_recipe_ids_list)
+            unique_recipes = len(all_recipe_ids_set)
+            
+            self.stdout.write(f"  Total recipes in plan: {total_recipes}")
+            self.stdout.write(f"  Unique recipe IDs: {unique_recipes}")
+            
+            if total_recipes != unique_recipes:
+                # Find duplicates
+                from collections import Counter
+                recipe_counts = Counter(all_recipe_ids_list)
+                duplicates = {rid: count for rid, count in recipe_counts.items() if count > 1}
+                
+                self.stdout.write(self.style.ERROR(f"  ✗ CRITICAL: Recipe repetition detected!"))
+                self.stdout.write(self.style.ERROR(f"  ✗ {total_recipes - unique_recipes} duplicate recipe(s) found:"))
+                for recipe_id, count in duplicates.items():
+                    # Find recipe name
+                    recipe_name = "Unknown"
+                    for day_key, day_plan in weekly_plan.items():
+                        for meal_name, recipes in day_plan.items():
+                            for recipe in recipes:
+                                if recipe['id'] == recipe_id:
+                                    recipe_name = recipe.get('name', 'Unknown')
+                                    break
+                            if recipe_name != "Unknown":
+                                break
+                        if recipe_name != "Unknown":
+                            break
+                    self.stdout.write(self.style.ERROR(f"    - Recipe ID {recipe_id} ({recipe_name}): appears {count} times"))
+                
+                validation_errors.append(f"CRITICAL: Recipe repetition detected. {total_recipes - unique_recipes} duplicate(s) found.")
+            else:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Global uniqueness verified: All {total_recipes} recipes are unique"))
+            
+            # CRITICAL: Verify intra-day uniqueness (no recipe appears multiple times within a single day)
+            intra_day_duplicates_found = False
+            for day_key, day_ids in day_recipe_ids.items():
+                unique_day_ids = set(day_ids)
+                if len(day_ids) != len(unique_day_ids):
+                    duplicates = [rid for rid in day_ids if day_ids.count(rid) > 1]
+                    self.stdout.write(self.style.ERROR(f"  ✗ CRITICAL: Intra-day repetition in {day_key}!"))
+                    self.stdout.write(self.style.ERROR(f"  ✗ Duplicate recipe IDs: {set(duplicates)}"))
+                    validation_errors.append(f"CRITICAL: Intra-day repetition in {day_key}. Duplicate IDs: {set(duplicates)}")
+                    intra_day_duplicates_found = True
+            
+            if not intra_day_duplicates_found:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Intra-day uniqueness verified: No recipe appears multiple times within any day"))
+            
+            # CRITICAL: Verify inter-day uniqueness (no recipe appears across multiple days)
+            # This is already checked by the global uniqueness check above, but we verify explicitly
+            if total_recipes == unique_recipes:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Inter-day uniqueness verified: No recipe appears across multiple days"))
+            
+            self.stdout.write(f"{'=' * 80}\n")
+            
             # === VALIDATION ===
             self.stdout.write(f"\n[VALIDATION]")
             self.stdout.write(f"\n{'=' * 80}")
             self.stdout.write(f"GENERATED MEAL PLAN DETAILS")
             self.stdout.write(f"{'=' * 80}")
             
-            all_recipe_ids = set()
-            validation_errors = []
-            validation_warnings = []
+            # Continue with existing validation_errors and validation_warnings from uniqueness check
             total_calories = 0
             total_protein = 0
             desserts_in_dinner = 0
@@ -292,10 +542,8 @@ class Command(BaseCommand):
                         # Display recipe
                         self.stdout.write(f"    - {recipe_name} [{recipe_type}]")
                         
-                        # Check for repetition
-                        if recipe_id in all_recipe_ids:
-                            validation_errors.append(f"Recipe repetition: {recipe_name} (ID: {recipe_id})")
-                        all_recipe_ids.add(recipe_id)
+                        # Note: Uniqueness validation already performed above
+                        # This is just for tracking in the display loop
                         
                         # Track nutrition
                         recipe_cal = recipe.get('avg_calories', 0)
@@ -392,7 +640,7 @@ class Command(BaseCommand):
             self.stdout.write(f"\n  Actual Total: {total_calories:.0f} kcal, {total_protein:.1f}g protein")
             self.stdout.write(f"  Target Total: {target_calories:.0f} kcal, {target_protein:.1f}g protein")
             self.stdout.write(f"  Deviation: {cal_deviation:.1f}% (Cal), {pro_deviation:.1f}% (Pro)")
-            self.stdout.write(f"  Unique Recipes: {len(all_recipe_ids)}")
+            self.stdout.write(f"  Unique Recipes: {unique_recipes} / Total: {total_recipes}")
             self.stdout.write(f"  Days with Vegetables: {days_with_vegetables}/{len(weekly_plan)}")
             self.stdout.write(f"  Desserts in Dinner: {desserts_in_dinner}")
             
@@ -411,16 +659,27 @@ class Command(BaseCommand):
                 validation_warnings.append("No desserts found in any dinner")
             
             # Persona result
-            status = 'PASSED' if len(validation_errors) == 0 else 'FAILED'
+            # CRITICAL: Recipe repetition is a fatal error - test must fail
+            # CRITICAL: Cluster ID mismatch is also a fatal error - the decision matrix must work correctly
+            critical_errors = [e for e in validation_errors if 'CRITICAL' in e or 'repetition' in e.lower()]
+            if len(critical_errors) > 0:
+                status = 'FAILED (CRITICAL: Recipe repetition)'
+            elif not cluster_id_match:
+                status = 'FAILED (CRITICAL: Cluster ID mismatch)'
+            else:
+                status = 'PASSED' if len(validation_errors) == 0 else 'FAILED'
+            
             persona_results.append({
-                'persona': persona['name'],
+                'persona': persona_id,
                 'status': status,
                 'targets_calculated': daily_targets,
                 'cluster_prediction': predicted_cluster_name,
-                'cluster_match': cluster_match,
+                'cluster_id_match': cluster_id_match,
+                'cluster_keyword_match': cluster_keyword_match,
                 'plan_generated': True,
                 'days_generated': len(weekly_plan),
-                'unique_recipes': len(all_recipe_ids),
+                'unique_recipes': unique_recipes,  # Use unique_recipes from uniqueness validation
+                'total_recipes': total_recipes,  # Total recipes in plan
                 'errors': len(validation_errors),
                 'warnings': len(validation_warnings),
                 'desserts_in_dinner': desserts_in_dinner,
@@ -432,7 +691,13 @@ class Command(BaseCommand):
             # Report results
             self.stdout.write(f"  Status: {status}")
             self.stdout.write(f"  Days Generated: {len(weekly_plan)}/{persona['user_profile']['number_of_days']}")
-            self.stdout.write(f"  Unique Recipes: {len(all_recipe_ids)}")
+            
+            # Cleanup: Store user for potential cleanup later (or keep for analysis)
+            # Note: In production, you might want to keep test data for analysis
+            # For now, we'll keep users but could add cleanup option
+            persona_results[-1]['user_id'] = user.id
+            persona_results[-1]['username'] = user.username
+            self.stdout.write(f"  Unique Recipes: {unique_recipes} / Total: {total_recipes}")
             self.stdout.write(f"  Days with Vegetables: {days_with_vegetables}/{len(weekly_plan)}")
             self.stdout.write(f"  Desserts in Dinner: {desserts_in_dinner}")
             self.stdout.write(f"  Nutritional Accuracy: Calories {cal_deviation:.1f}%, Protein {pro_deviation:.1f}%")
@@ -454,10 +719,116 @@ class Command(BaseCommand):
             
             # Cleanup between personas
             del weekly_plan
-            del all_recipe_ids
+            del all_recipe_ids_list
+            del all_recipe_ids_set
+            del day_recipe_ids
             gc.collect()
             if persona_idx < len(personas):
                 time.sleep(0.5)
+        
+        # === FAILURE SCENARIO TEST: Verify Fallback Mechanism ===
+        self.stdout.write("\n" + "=" * 80)
+        self.stdout.write("FAILURE SCENARIO TEST: Fallback Mechanism")
+        self.stdout.write("=" * 80)
+        self.stdout.write("Purpose: Verify that the system gracefully falls back to default plans when optimization fails")
+        
+        try:
+            # Create a test user for failure scenario
+            username_fail = f"test_failure_{int(timezone.now().timestamp())}"
+            user_fail = User.objects.create_user(
+                username=username_fail,
+                email=f"{username_fail}@test.com",
+                password='test_password_123'
+            )
+            self.stdout.write(f"\n[DATABASE SETUP]")
+            self.stdout.write(f"  ✓ Created test user: {username_fail}")
+            
+            # Create a user profile that will cause optimization to fail
+            # We'll use an impossible scenario: requesting recipes from a non-existent cluster
+            # by using an invalid goal that maps to a cluster with no recipes
+            failure_profile = {
+                'age': 30,
+                'gender': 'male',
+                'height_cm': 175.0,
+                'weight_kg': 70.0,
+                'activity_level': 'moderate',
+                'primary_goal': 'maintain',  # This should work, but we'll force failure another way
+                'pace': 'moderate',
+                'number_of_days': 2,
+                'allergies': 'nonexistent_ingredient_xyz123',  # This will filter out all recipes
+                'dislikes': ''
+            }
+            
+            self.stdout.write(f"\n[FAILURE TEST]")
+            self.stdout.write(f"  Profile: {failure_profile}")
+            self.stdout.write(f"  Strategy: Using allergies that match no recipes to force fallback")
+            
+            # Count events before
+            events_before = PlanGenerationEvent.objects.count()
+            plans_before = GeneratedPlan.objects.count()
+            
+            # Attempt to generate plan (should trigger fallback)
+            weekly_plan_fail = generate_full_meal_plan(failure_profile, user_id=user_fail.id)
+            
+            # Verify fallback was triggered
+            if weekly_plan_fail:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Plan returned (fallback should have been used)"))
+                
+                # Check if it's a default plan (has negative recipe IDs)
+                is_default_plan = False
+                for day_key, day_plan in weekly_plan_fail.items():
+                    for meal_name, recipes in day_plan.items():
+                        for recipe in recipes:
+                            if recipe.get('id', 0) < 0:
+                                is_default_plan = True
+                                break
+                        if is_default_plan:
+                            break
+                    if is_default_plan:
+                        break
+                
+                if is_default_plan:
+                    self.stdout.write(self.style.SUCCESS(f"  ✓ Default plan detected (negative recipe IDs)"))
+                else:
+                    self.stdout.write(self.style.WARNING(f"  ⚠ Plan returned but may not be default plan"))
+                
+                # Verify database logging
+                try:
+                    user_profile_fail = UserProfile.objects.get(user=user_fail)
+                    plan_events_fail = PlanGenerationEvent.objects.filter(user_profile=user_profile_fail)
+                    
+                    if plan_events_fail.exists():
+                        plan_event_fail = plan_events_fail.first()
+                        self.stdout.write(self.style.SUCCESS(f"  ✓ PlanGenerationEvent created: #{plan_event_fail.id}"))
+                        self.stdout.write(f"    - Status: {plan_event_fail.status}")
+                        
+                        if plan_event_fail.status == 'fallback_default':
+                            self.stdout.write(self.style.SUCCESS(f"  ✓ Status correctly set to 'fallback_default'"))
+                        else:
+                            self.stdout.write(self.style.WARNING(f"  ⚠ Status is '{plan_event_fail.status}' (expected 'fallback_default')"))
+                        
+                        # Check GeneratedPlan
+                        try:
+                            generated_plan_fail = GeneratedPlan.objects.get(event=plan_event_fail)
+                            self.stdout.write(self.style.SUCCESS(f"  ✓ GeneratedPlan created for fallback event"))
+                            self.stdout.write(f"    - Plan Data: {len(generated_plan_fail.plan_data)} days")
+                        except GeneratedPlan.DoesNotExist:
+                            self.stdout.write(self.style.ERROR(f"  ✗ GeneratedPlan not found for fallback event"))
+                    else:
+                        self.stdout.write(self.style.ERROR(f"  ✗ PlanGenerationEvent not created"))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"  ✗ Database validation error: {e}"))
+            else:
+                self.stdout.write(self.style.ERROR(f"  ✗ No plan returned (fallback should have provided a plan)"))
+            
+            # Cleanup
+            user_fail.delete()
+            self.stdout.write(f"\n  ✓ Cleaned up test user")
+            
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"  ✗ Failure scenario test error: {e}"))
+            import traceback
+            self.stdout.write(traceback.format_exc())
         
         # === FINAL SUMMARY REPORT ===
         self.stdout.write("\n" + "=" * 80)
@@ -472,8 +843,27 @@ class Command(BaseCommand):
         self.stdout.write(f"  Passed: {passed}")
         self.stdout.write(f"  Failed: {failed}")
         
-        self.stdout.write(f"\nAI Cluster Prediction Accuracy:")
-        cluster_matches = sum(1 for r in persona_results if r.get('cluster_match', False))
+        self.stdout.write(f"\nDatabase Logging Validation:")
+        total_events = PlanGenerationEvent.objects.count()
+        total_plans = GeneratedPlan.objects.count()
+        # Count UserProfiles for test users (usernames starting with 'test_')
+        total_profiles = UserProfile.objects.filter(user__username__startswith='test_').count()
+        self.stdout.write(f"  UserProfiles Created: {total_profiles}")
+        self.stdout.write(f"  PlanGenerationEvents Created: {total_events}")
+        self.stdout.write(f"  GeneratedPlans Created: {total_plans}")
+        
+        # Check status distribution
+        if total_events > 0:
+            success_count = PlanGenerationEvent.objects.filter(status='success').count()
+            fallback_count = PlanGenerationEvent.objects.filter(status='fallback_default').count()
+            failed_count = PlanGenerationEvent.objects.filter(status='failed').count()
+            self.stdout.write(f"  Event Status Distribution:")
+            self.stdout.write(f"    - Success: {success_count}")
+            self.stdout.write(f"    - Fallback Default: {fallback_count}")
+            self.stdout.write(f"    - Failed: {failed_count}")
+        
+        self.stdout.write(f"\nRule-Based Cluster Mapping Accuracy:")
+        cluster_matches = sum(1 for r in persona_results if r.get('cluster_id_match', False))
         self.stdout.write(f"  Correct Cluster Predictions: {cluster_matches}/{len(persona_results)}")
         
         self.stdout.write(f"\nDessert Pool Validation:")
@@ -487,7 +877,7 @@ class Command(BaseCommand):
             if result.get('targets_calculated'):
                 targets = result['targets_calculated']
                 self.stdout.write(f"    Targets: {targets['calories']:.0f} kcal, {targets['protein_g']:.0f}g protein")
-            self.stdout.write(f"    Cluster: {result.get('cluster_prediction', 'N/A')} {'(match)' if result.get('cluster_match') else '(no match)'}")
+            self.stdout.write(f"    Cluster: {result.get('cluster_prediction', 'N/A')} {'(match)' if result.get('cluster_id_match') else '(no match)'}")
             self.stdout.write(f"    Recipes: {result.get('unique_recipes', 0)} unique, {result.get('errors', 0)} errors, {result.get('warnings', 0)} warnings")
         
         # Overall Status

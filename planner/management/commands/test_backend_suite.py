@@ -23,11 +23,10 @@ class Command(BaseCommand):
         self.stdout.write("Use Case: Comprehensive validation before deployment or after major changes")
         self.stdout.write("\n" + "=" * 80)
         self.stdout.write("\nThis test runner executes the following test commands:")
-        self.stdout.write("  1. test_ai_service - AI model loading and cluster predictions")
-        self.stdout.write("  2. test_optimizer - Optimization service functionality")
+        self.stdout.write("  1. test_ai_service - AI model loading and cluster predictions (unit test)")
+        self.stdout.write("  2. test_optimizer - Optimization service functionality (unit test)")
         self.stdout.write("  3. test_meal_composition - Single-scenario integration test (TIER 1)")
-        self.stdout.write("  4. test_user_scenarios - User scenario tests")
-        self.stdout.write("  5. test_final_validation - Multi-scenario validation suite (TIER 2)")
+        self.stdout.write("  4. test_final_validation - Multi-scenario validation suite with database logging (TIER 2)")
         self.stdout.write("\n" + "=" * 80 + "\n")
 
         test_results = {
@@ -37,7 +36,7 @@ class Command(BaseCommand):
         }
 
         # Test 1: AI Service
-        self.stdout.write("\n[TEST 1/5] AI Service Tests")
+        self.stdout.write("\n[TEST 1/4] AI Service Tests")
         self.stdout.write("-" * 80)
         try:
             out = StringIO()
@@ -56,7 +55,7 @@ class Command(BaseCommand):
             test_results['failed'].append("AI Service Tests")
 
         # Test 2: Optimization Service (basic)
-        self.stdout.write("\n[TEST 2/5] Optimization Service Tests")
+        self.stdout.write("\n[TEST 2/4] Optimization Service Tests")
         self.stdout.write("-" * 80)
         try:
             out = StringIO()
@@ -74,7 +73,7 @@ class Command(BaseCommand):
 
         # Test 3: Meal Composition (Integration Test)
         if not options['skip_slow']:
-            self.stdout.write("\n[TEST 3/5] Meal Composition Integration Test")
+            self.stdout.write("\n[TEST 3/4] Meal Composition Integration Test")
             self.stdout.write("-" * 80)
             try:
                 out = StringIO()
@@ -95,26 +94,9 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING("Skipping slow integration test (--skip-slow)"))
 
-        # Test 4: User Scenarios
-        self.stdout.write("\n[TEST 4/5] User Scenario Tests")
-        self.stdout.write("-" * 80)
-        try:
-            out = StringIO()
-            call_command('test_user_scenarios', stdout=out, stderr=out)
-            output = out.getvalue()
-            self.stdout.write(output)
-            
-            if "ERROR" in output or "FAILED" in output:
-                test_results['failed'].append("User Scenario Tests")
-            else:
-                test_results['passed'].append("User Scenario Tests")
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"User Scenario Tests FAILED: {str(e)}"))
-            test_results['failed'].append("User Scenario Tests")
-
-        # Test 5: Final Validation (Diverse User Scenarios)
+        # Test 4: Final Validation (Diverse User Scenarios)
         if not options['skip_slow']:
-            self.stdout.write("\n[TEST 5/5] Final Validation - Diverse User Scenarios")
+            self.stdout.write("\n[TEST 4/4] Final Validation - Diverse User Scenarios")
             self.stdout.write("-" * 80)
             try:
                 out = StringIO()
