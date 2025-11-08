@@ -161,3 +161,118 @@ class AccountCredentialsForm(UserCreationForm):
             )
         
         return user
+
+
+class GeneratePlanForm(forms.Form):
+    """Form for generating a new meal plan."""
+    
+    PRIMARY_GOAL_CHOICES = [
+        ('lose_weight', 'Lose Weight'),
+        ('maintain', 'Maintain Weight'),
+        ('gain_muscle', 'Gain Muscle'),
+        ('gain_weight', 'Gain Weight'),
+    ]
+    
+    DIETARY_STYLE_CHOICES = [
+        ('balanced', 'Balanced'),
+        ('low_carb', 'Low Carb'),
+        ('low_fat', 'Low Fat'),
+    ]
+    
+    PACE_CHOICES = [
+        ('mild', 'Mild'),
+        ('moderate', 'Moderate'),
+        ('fast', 'Fast'),
+    ]
+    
+    number_of_days = forms.IntegerField(
+        label='Number of Days',
+        min_value=1,
+        max_value=30,
+        initial=7,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'min': '1',
+            'max': '30'
+        }),
+        help_text='How many days would you like your meal plan to cover? (1-30 days)'
+    )
+    
+    primary_goal = forms.ChoiceField(
+        label='Primary Goal',
+        choices=PRIMARY_GOAL_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-input'
+        }),
+        help_text='What is your primary health and fitness goal?'
+    )
+    
+    weight_kg = forms.FloatField(
+        label='Current Weight (kg)',
+        required=False,
+        min_value=20.0,
+        max_value=300.0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'step': '0.1',
+            'placeholder': 'e.g., 70.5'
+        }),
+        help_text='Optional: Your current weight in kilograms (used for calorie calculations)'
+    )
+    
+    dietary_style = forms.ChoiceField(
+        label='Dietary Style',
+        choices=DIETARY_STYLE_CHOICES,
+        initial='balanced',
+        widget=forms.Select(attrs={
+            'class': 'form-input'
+        }),
+        help_text='Choose your preferred dietary approach.'
+    )
+    
+    allergies = forms.CharField(
+        label='Allergies',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'e.g., peanuts, shellfish, dairy'
+        }),
+        help_text='List any food allergies (comma-separated). Leave blank if none.'
+    )
+    
+    dislikes = forms.CharField(
+        label='Dislikes',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'e.g., lamb, bitter melon, mushrooms'
+        }),
+        help_text='List any foods you dislike (comma-separated). Leave blank if none.'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        """Initialize form with user's current preferences."""
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Pre-populate with user's profile data if available
+        if user:
+            try:
+                profile = user.profile
+                # Set initial values from profile
+                if profile.allergies:
+                    self.fields['allergies'].initial = ', '.join(profile.allergies) if isinstance(profile.allergies, list) else profile.allergies
+                if profile.dislikes:
+                    self.fields['dislikes'].initial = ', '.join(profile.dislikes) if isinstance(profile.dislikes, list) else profile.dislikes
+                # Get weight from latest plan generation event if available
+                from .models import PlanGenerationEvent
+                try:
+                    latest_event = PlanGenerationEvent.objects.filter(
+                        user_profile=profile
+                    ).order_by('-created_at').first()
+                    if latest_event and latest_event.weight_kg_at_request:
+                        self.fields['weight_kg'].initial = latest_event.weight_kg_at_request
+                except:
+                    pass
+            except UserProfile.DoesNotExist:
+                pass

@@ -1,0 +1,80 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}{{ recipe.name }} - CNutrition{% endblock %}
+
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/recipe_detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="recipe-detail-container">
+    <div class="recipe-detail-card">
+        <!-- Hero Image -->
+        <div class="recipe-hero">
+            <img src="{{ image_url }}" 
+                 alt="{{ recipe.name }}" 
+                 class="recipe-hero-image"
+                 onerror="this.src='{% static 'planner/images/placeholder.png' %}'">
+        </div>
+        
+        <!-- Recipe Header -->
+        <div class="recipe-header">
+            <h1 class="recipe-title">{{ recipe.name }}</h1>
+            <div class="recipe-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Calories:</span>
+                    <span class="meta-value">{{ recipe.avg_calories|floatformat:0 }} kcal</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Protein:</span>
+                    <span class="meta-value">{{ recipe.avg_protein_g|floatformat:1 }}g</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Fat:</span>
+                    <span class="meta-value">{{ recipe.avg_fat_g|floatformat:1 }}g</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Carbs:</span>
+                    <span class="meta-value">{{ recipe.avg_carbs_g|floatformat:1 }}g</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ingredients Section -->
+        <div class="recipe-section">
+            <h2 class="section-title">Ingredients</h2>
+            {% if ingredients %}
+                <ul class="ingredients-list">
+                    {% for ingredient in ingredients %}
+                    <li class="ingredient-item">{{ ingredient }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="no-data">No ingredients listed.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Steps Section -->
+        <div class="recipe-section">
+            <h2 class="section-title">Instructions</h2>
+            {% if steps %}
+                <ol class="steps-list">
+                    {% for step in steps %}
+                    <li class="step-item">{{ step }}</li>
+                    {% endfor %}
+                </ol>
+            {% else %}
+                <p class="no-data">No instructions available.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Back Button -->
+        <div class="recipe-actions">
+            <a href="{% url 'planner:dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

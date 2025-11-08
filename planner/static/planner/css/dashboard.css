@@ -1,0 +1,330 @@
+/**
+ * CNutrition - Dashboard Stylesheet
+ * Professional styling for the dashboard page
+ */
+
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.dashboard-main {
+    min-width: 0; /* Prevent grid overflow */
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    color: var(--brand-cobalt);
+    margin-bottom: 2rem;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--border-soft);
+    overflow-x: auto;
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.tab-button:hover {
+    color: var(--brand-cobalt);
+    background: rgba(86, 168, 199, 0.1);
+}
+
+.tab-button.active {
+    color: var(--brand-cobalt);
+    border-bottom-color: var(--brand-cobalt);
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Nutrition Chart */
+.nutrition-chart-container {
+    background: var(--brand-white);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.nutrition-chart-container h2 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.chart-wrapper {
+    max-width: 400px;
+    margin: 0 auto 1.5rem;
+}
+
+.nutrition-summary {
+    margin-top: 1.5rem;
+}
+
+.nutrition-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.nutrition-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: var(--brand-ice);
+    border-radius: 8px;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-weight: 700;
+    color: var(--brand-cobalt);
+}
+
+/* Meal Sections */
+.meal-section {
+    margin-bottom: 2.5rem;
+}
+
+.meal-title {
+    font-size: 1.75rem;
+    color: var(--brand-cobalt);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--brand-mint);
+}
+
+.recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.recipe-card {
+    background: var(--brand-white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.recipe-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.recipe-image-wrapper {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: var(--brand-ice);
+}
+
+.recipe-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+}
+
+.recipe-card:hover .recipe-image {
+    transform: scale(1.05);
+}
+
+.recipe-info {
+    padding: 1.25rem;
+}
+
+.recipe-name {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.1rem;
+}
+
+.recipe-name a {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.recipe-name a:hover {
+    color: var(--brand-cobalt);
+}
+
+.recipe-calories {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Empty Plan State */
+.empty-plan-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+}
+
+.empty-plan-card {
+    background: var(--brand-white);
+    border-radius: 16px;
+    padding: 3rem;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    max-width: 600px;
+}
+
+.empty-plan-card h2 {
+    font-size: 2rem;
+    color: var(--brand-cobalt);
+    margin-bottom: 1rem;
+}
+
+.empty-plan-card p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+/* Sidebar */
+.dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.sidebar-card {
+    background: var(--brand-white);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.sidebar-card h2 {
+    font-size: 1.5rem;
+    color: var(--brand-cobalt);
+    margin-bottom: 1rem;
+}
+
+.sidebar-description {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.btn-block {
+    width: 100%;
+    text-align: center;
+}
+
+/* Explore Recipes */
+.explore-recipes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.explore-recipe-card {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-normal);
+}
+
+.explore-recipe-card:hover {
+    transform: translateY(-2px);
+}
+
+.explore-recipe-card a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.explore-recipe-image {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    background: var(--brand-ice);
+}
+
+.explore-recipe-name {
+    padding: 0.75rem;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.explore-recipe-calories {
+    padding: 0 0.75rem 0.75rem;
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .dashboard-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-sidebar {
+        order: -1; /* Move sidebar to top on mobile */
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-layout {
+        padding: 1rem;
+    }
+    
+    .recipe-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .explore-recipes-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tab-navigation {
+        gap: 0.25rem;
+    }
+    
+    .tab-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+

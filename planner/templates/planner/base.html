@@ -14,13 +14,13 @@
         <a href="{% url 'planner:dashboard' %}" class="navbar-brand">
             <div class="navbar-logo-container">
                 <img src="{% static logo_transparent %}" alt="CNutrition Logo" class="navbar-logo" onerror="this.style.display='none'">
-                <img src="{% static brand_name_transparent %}" alt="CNutrition Planner" class="navbar-brand-name" onerror="this.style.display='none'">
+                <h1 class="navbar-brand-name">CNutrition Planner</h1>
             </div>
         </a>
         <ul class="navbar-nav">
             {% if user.is_authenticated %}
                 <li><a href="{% url 'planner:dashboard' %}" class="nav-link">Dashboard</a></li>
-                <li><a href="#" class="nav-link">Create Plan</a></li>
+                <li><a href="{% url 'planner:generate_plan' %}" class="nav-link">Create Plan</a></li>
                 <li><a href="{% url 'planner:logout' %}" class="nav-link">Logout</a></li>
                 <li><span class="nav-link username">{{ user.username }}</span></li>
             {% else %}

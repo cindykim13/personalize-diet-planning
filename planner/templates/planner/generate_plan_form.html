@@ -1,0 +1,126 @@
+{% extends 'planner/base.html' %}
+
+{% block title %}Generate Meal Plan - CNutrition{% endblock %}
+
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/auth.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Generate Your Meal Plan</h1>
+            <p>Create a personalized meal plan tailored to your goals and preferences</p>
+        </div>
+
+        <form method="post" action="{% url 'planner:generate_plan' %}" class="registration-form">
+            {% csrf_token %}
+
+            <div class="form-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="section-number">1</span>
+                        Plan Details
+                    </h2>
+                    <p class="section-description">Configure the basic parameters for your meal plan.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.number_of_days.id_for_label }}" class="form-label">{{ form.number_of_days.label }}</label>
+                    {{ form.number_of_days }}
+                    {% if form.number_of_days.errors %}
+                        <div class="form-error">{% for error in form.number_of_days.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.number_of_days.help_text %}
+                        <small class="form-help-text">{{ form.number_of_days.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.primary_goal.id_for_label }}" class="form-label">{{ form.primary_goal.label }}</label>
+                    {{ form.primary_goal }}
+                    {% if form.primary_goal.errors %}
+                        <div class="form-error">{% for error in form.primary_goal.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.primary_goal.help_text %}
+                        <small class="form-help-text">{{ form.primary_goal.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.dietary_style.id_for_label }}" class="form-label">{{ form.dietary_style.label }}</label>
+                    {{ form.dietary_style }}
+                    {% if form.dietary_style.errors %}
+                        <div class="form-error">{% for error in form.dietary_style.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.dietary_style.help_text %}
+                        <small class="form-help-text">{{ form.dietary_style.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.weight_kg.id_for_label }}" class="form-label">{{ form.weight_kg.label }}</label>
+                    {{ form.weight_kg }}
+                    {% if form.weight_kg.errors %}
+                        <div class="form-error">{% for error in form.weight_kg.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.weight_kg.help_text %}
+                        <small class="form-help-text">{{ form.weight_kg.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="section-number">2</span>
+                        Preferences & Restrictions
+                    </h2>
+                    <p class="section-description">Help us customize your plan by sharing your dietary restrictions and preferences.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.allergies.id_for_label }}" class="form-label">{{ form.allergies.label }}</label>
+                    {{ form.allergies }}
+                    {% if form.allergies.errors %}
+                        <div class="form-error">{% for error in form.allergies.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.allergies.help_text %}
+                        <small class="form-help-text">{{ form.allergies.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.dislikes.id_for_label }}" class="form-label">{{ form.dislikes.label }}</label>
+                    {{ form.dislikes }}
+                    {% if form.dislikes.errors %}
+                        <div class="form-error">{% for error in form.dislikes.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.dislikes.help_text %}
+                        <small class="form-help-text">{{ form.dislikes.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-error">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-actions">
+                <a href="{% url 'planner:dashboard' %}" class="btn btn-secondary btn-large">Cancel</a>
+                <button type="submit" class="btn btn-primary btn-large">Generate Plan</button>
+            </div>
+        </form>
+
+        <div class="auth-footer">
+            <p><a href="{% url 'planner:dashboard' %}" class="auth-link">Back to Dashboard</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -15,11 +15,11 @@
     --text-primary: #1e2a38;
     --text-secondary: #506273;
     --border-soft: rgba(255, 255, 255, 0.6);
-
+    
     /* Gradients */
     --gradient-background: linear-gradient(120deg, #A8E6CF 0%, #7CB188 33%, #56A8C7 66%, #5F8BC4 100%);
     --gradient-action: linear-gradient(135deg, #56A8C7 0%, #5F8BC4 100%);
-
+    
     /* Shadows & Transitions */
     --shadow-sm: 0 6px 18px rgba(30, 42, 56, 0.08);
     --shadow-md: 0 12px 30px rgba(30, 42, 56, 0.12);
@@ -49,7 +49,7 @@ body {
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow-sm);
-    padding: 0.75rem 2.5rem;
+    padding: 0.5rem 2.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -58,12 +58,12 @@ body {
     z-index: 1000;
     border-bottom: 1px solid var(--border-soft);
     overflow: visible; /* Allow logo to overflow navbar bounds */
-    min-height: 80px; /* Maintain slim navbar height */
+    min-height: 70px; /* Maintain slim navbar height */
 }
 
 .navbar-brand {
     display: flex;
-    align-items: flex-start; /* Align to top to allow overflow */
+    align-items: center; /* Center align for perfect vertical alignment */
     gap: 0;
     text-decoration: none;
     color: var(--text-primary);
@@ -80,51 +80,80 @@ body {
 
 .navbar-logo-container {
     display: flex;
-    align-items: center;
-    gap: 1.25rem;
+    align-items: center; /* Perfect vertical centering */
+    gap: 1.5rem;
     position: relative;
-    padding-top: 0.5rem; /* Small top padding for visual balance */
-    padding-bottom: 0.5rem;
+    padding: 0;
+    margin: 0;
 }
 
-/* Large, prominent logo using scale transform and absolute positioning */
+/* Dramatically large, prominent logo - Maximum visual impact */
 .navbar-logo {
-    height: 180px; /* Large base size */
+    height: 280px; /* DRAMATICALLY LARGER - Maximum impact */
     width: auto;
     transform: scale(1);
-    filter: drop-shadow(0 16px 32px rgba(31, 42, 56, 0.18));
+    filter: drop-shadow(0 20px 40px rgba(31, 42, 56, 0.22));
     transition: transform var(--transition-fast), filter var(--transition-fast);
     position: relative;
     z-index: 11;
     object-fit: contain;
-    /* Allow logo to extend beyond navbar vertically */
-    margin-top: -40px; /* Pull logo up to extend above navbar */
-    margin-bottom: -40px; /* Pull logo down to extend below navbar */
+    /* Allow logo to extend dramatically beyond navbar vertically */
+    margin-top: -70px; /* Pull logo up significantly */
+    margin-bottom: -70px; /* Pull logo down significantly */
+    flex-shrink: 0;
 }
 
 .navbar-logo:hover {
-    transform: scale(1.05);
-    filter: drop-shadow(0 20px 40px rgba(31, 42, 56, 0.25));
+    transform: scale(1.08);
+    filter: drop-shadow(0 24px 48px rgba(31, 42, 56, 0.30));
 }
 
-/* Large, prominent brand name */
+/* Brand name as HTML text with CSS gradient - Pixel-perfect quality */
 .navbar-brand-name {
-    height: 120px; /* Significantly larger */
-    width: auto;
-    transform: scale(1);
-    filter: drop-shadow(0 14px 28px rgba(31, 42, 56, 0.15));
-    transition: transform var(--transition-fast), filter var(--transition-fast);
+    margin: 0;
+    padding: 0;
+    font-size: 4.5rem; /* DRAMATICALLY LARGE - Maximum impact (72px) */
+    font-weight: 800; /* Extra bold for maximum prominence */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: -0.02em; /* Tight letter spacing for modern look */
+    line-height: 1.1; /* Tight line height for compact appearance */
+    
+    /* Advanced CSS Gradient Text */
+    background: linear-gradient(135deg, 
+        #A8E6CF 0%, 
+        #7CB188 30%, 
+        #56A8C7 60%, 
+        #5F8BC4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent; /* Fallback for browsers that don't support background-clip */
+    
+    /* Perfect text rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    
+    /* Visual effects - Using filter for gradient text (text-shadow doesn't work with transparent text) */
+    filter: drop-shadow(0 4px 12px rgba(86, 168, 199, 0.25));
+    
+    /* Positioning and spacing */
     position: relative;
     z-index: 11;
-    object-fit: contain;
+    white-space: nowrap; /* Prevent text wrapping */
+    flex-shrink: 0;
+    
     /* Allow brand name to extend beyond navbar */
-    margin-top: -35px;
-    margin-bottom: -35px;
+    margin-top: -20px;
+    margin-bottom: -20px;
+    
+    /* Smooth transitions */
+    transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
 .navbar-brand-name:hover {
-    transform: scale(1.03);
-    filter: drop-shadow(0 18px 36px rgba(31, 42, 56, 0.20));
+    transform: scale(1.05);
+    filter: drop-shadow(0 6px 16px rgba(86, 168, 199, 0.35));
 }
 
 .navbar-nav {
@@ -173,11 +202,11 @@ body {
    GLOBAL CONTAINERS
    ============================================ */
 
-/* Add padding to top of container to account for logo overflow */
+/* Add padding to top of container to account for dramatically large logo overflow */
 .container {
     max-width: 1200px;
     margin: 2rem auto;
-    padding: 2.5rem 2rem 0 2rem; /* Extra top padding for logo overflow */
+    padding: 4rem 2rem 0 2rem; /* Increased top padding for large logo overflow */
 }
 
 .content-card {
@@ -489,7 +518,7 @@ input[type="tel"]:focus {
     .navbar {
         flex-direction: column;
         gap: 1rem;
-        padding: 0.75rem 1.5rem;
+        padding: 0.5rem 1.5rem;
         min-height: auto;
         overflow: visible;
     }
@@ -501,18 +530,19 @@ input[type="tel"]:focus {
 
     .navbar-logo-container {
         justify-content: center;
+        gap: 1.25rem;
     }
 
     .navbar-logo {
-        height: 140px;
-        margin-top: -30px;
-        margin-bottom: -30px;
+        height: 200px; /* Still large on tablet */
+        margin-top: -50px;
+        margin-bottom: -50px;
     }
 
     .navbar-brand-name {
-        height: 90px;
-        margin-top: -25px;
-        margin-bottom: -25px;
+        font-size: 3.5rem; /* Large text on tablet (56px) */
+        margin-top: -15px;
+        margin-bottom: -15px;
     }
 
     .navbar-nav {
@@ -526,33 +556,36 @@ input[type="tel"]:focus {
     }
 
     .container {
-        padding-top: 2rem; /* Less padding on mobile */
+        padding-top: 3rem; /* Account for large logo on tablet */
     }
 }
 
 @media (max-width: 640px) {
     .navbar {
-        padding: 0.5rem 1rem;
-    }
-
-    .navbar-logo {
-        height: 100px;
-        margin-top: -20px;
-        margin-bottom: -20px;
-    }
-
-    .navbar-brand-name {
-        height: 65px;
-        margin-top: -15px;
-        margin-bottom: -15px;
+        padding: 0.4rem 1rem;
     }
 
     .navbar-logo-container {
-        gap: 0.75rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .navbar-logo {
+        height: 140px; /* Still prominent on mobile */
+        margin-top: -35px;
+        margin-bottom: -35px;
+    }
+
+    .navbar-brand-name {
+        font-size: 2.5rem; /* Large text on mobile (40px) */
+        margin-top: -10px;
+        margin-bottom: -10px;
+        letter-spacing: -0.01em;
     }
 
     .container {
-        padding-top: 1.5rem;
+        padding-top: 2rem; /* Account for logo on mobile */
     }
 
     .form-actions {

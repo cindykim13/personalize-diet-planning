@@ -34,6 +34,9 @@ class Recipe(models.Model):
     avg_fat_g = models.FloatField(default=0.0)
     avg_carbs_g = models.FloatField(default=0.0)
 
+    # Image URL for recipe display (cached from Unsplash API)
+    image_url = models.URLField(max_length=500, blank=True, null=True, verbose_name='Image URL')
+
     def __str__(self):
         return self.name
 

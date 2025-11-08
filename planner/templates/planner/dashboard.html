@@ -2,43 +2,252 @@
 
 {% block title %}Dashboard - CNutrition{% endblock %}
 
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/dashboard.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="content-card">
-    <div class="dashboard-welcome">
-        <h1>Welcome, {{ user.first_name|default:user.username }}!</h1>
-        <p>Your personalized meal planning dashboard</p>
+<div class="dashboard-layout">
+    <!-- Left Column: Current Plan -->
+    <div class="dashboard-main">
+        {% if plan_data %}
+            <!-- Plan exists: Show tabbed interface -->
+            <div class="plan-container">
+                <h1 class="dashboard-title">Your Meal Plan</h1>
+                
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    {% for day_key in plan_data.keys %}
+                    <button class="tab-button {% if forloop.first %}active{% endif %}" 
+                            onclick="switchTab('{{ day_key }}')" 
+                            id="tab-{{ day_key }}">
+                        {{ day_key }}
+                    </button>
+                    {% endfor %}
+                </div>
+                
+                <!-- Tab Content -->
+                {% for day_key, day_plan in plan_data.items %}
+                <div class="tab-content {% if forloop.first %}active{% endif %}" id="content-{{ day_key }}">
+                    <!-- Pie Chart for Macronutrients -->
+                    <div class="nutrition-chart-container">
+                        <h2>Daily Nutrition Overview</h2>
+                        <div class="chart-wrapper">
+                            <canvas id="chart-{{ day_key }}"></canvas>
+                        </div>
+                        <div class="nutrition-summary" id="nutrition-{{ day_key }}"></div>
+                    </div>
+                    
+                    <!-- Meals -->
+                    {% for meal_name, recipes in day_plan.items %}
+                    <div class="meal-section">
+                        <h3 class="meal-title">{{ meal_name }}</h3>
+                        <div class="recipe-grid">
+                            {% for recipe in recipes %}
+                            <div class="recipe-card">
+                                <div class="recipe-image-wrapper">
+                                    <img src="{{ recipe.image_url }}" 
+                                         alt="{{ recipe.name }}" 
+                                         class="recipe-image"
+                                         onerror="this.src='{% static 'planner/images/placeholder.png' %}'">
+                                </div>
+                                <div class="recipe-info">
+                                    <h4 class="recipe-name">
+                                        <a href="{% url 'planner:recipe_detail' recipe.id %}">{{ recipe.name }}</a>
+                                    </h4>
+                                    <p class="recipe-calories">
+                                        <strong>Calories:</strong> {{ recipe.avg_calories|floatformat:0 }} kcal
+                                    </p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- No plan: Show empty state -->
+            <div class="empty-plan-container">
+                <div class="empty-plan-card">
+                    <h2>Welcome to Your Dashboard!</h2>
+                    <p>You don't have an active meal plan yet. Create your first personalized meal plan to get started.</p>
+                    <a href="{% url 'planner:generate_plan' %}" class="btn btn-primary btn-large">
+                        Generate Your First Meal Plan
+                    </a>
+                </div>
+            </div>
+        {% endif %}
     </div>
-
-    <div>
-        <h2 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.5rem;">Quick Actions</h2>
-        <div class="dashboard-actions">
-            <div class="dashboard-card">
-                <h3>Create New Plan</h3>
-                <p>Generate a personalized meal plan based on your goals, preferences, and nutritional needs.</p>
-                <a href="#" class="btn btn-primary">Create Plan</a>
-            </div>
-
-            <div class="dashboard-card">
-                <h3>View History</h3>
-                <p>Browse your previously generated meal plans and track your nutritional journey.</p>
-                <a href="#" class="btn btn-secondary">View History</a>
-            </div>
-
-            <div class="dashboard-card">
-                <h3>Profile Settings</h3>
-                <p>Update your profile information, dietary preferences, and personal goals.</p>
-                <a href="#" class="btn btn-secondary">Settings</a>
+    
+    <!-- Right Column: Sidebar -->
+    <div class="dashboard-sidebar">
+        <!-- Greeting & Actions Card -->
+        <div class="sidebar-card">
+            <h2>Hello, {{ user.first_name|default:user.username }}!</h2>
+            <p class="sidebar-description">Ready to plan your meals?</p>
+            <a href="{% url 'planner:generate_plan' %}" class="btn btn-primary btn-block">
+                Generate New Meal Plan
+            </a>
+        </div>
+        
+        <!-- Explore Recipes Card -->
+        <div class="sidebar-card">
+            <h2>Explore Recipes</h2>
+            <div class="explore-recipes-grid">
+                {% for recipe in explore_recipes %}
+                <div class="explore-recipe-card">
+                    <a href="{% url 'planner:recipe_detail' recipe.id %}">
+                        <img src="{{ recipe.image_url }}" 
+                             alt="{{ recipe.name }}" 
+                             class="explore-recipe-image"
+                             onerror="this.src='{% static 'planner/images/placeholder.png' %}'">
+                        <p class="explore-recipe-name">{{ recipe.name|truncatewords:5 }}</p>
+                        <p class="explore-recipe-calories">{{ recipe.avg_calories|floatformat:0 }} kcal</p>
+                    </a>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
-
-    <div class="dashboard-info">
-        <h3>Getting Started</h3>
-        <p>
-            Welcome to CNutrition! To get started, click "Create Plan" to generate your first personalized meal plan.
-            Our AI-powered system will create a customized meal plan based on your goals, preferences, and nutritional needs.
-            Each plan is carefully crafted to help you achieve your health and fitness objectives.
-        </p>
-    </div>
 </div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+// Nutrition data from backend
+const dailyNutritionData = {{ daily_nutrition_data|safe }};
+
+// Chart instances storage
+const chartInstances = {};
+
+// Initialize charts for all days
+document.addEventListener('DOMContentLoaded', function() {
+    for (const dayKey in dailyNutritionData) {
+        initializeChart(dayKey);
+    }
+    
+    // Show first tab by default
+    if (Object.keys(dailyNutritionData).length > 0) {
+        const firstDay = Object.keys(dailyNutritionData)[0];
+        switchTab(firstDay);
+    }
+});
+
+function initializeChart(dayKey) {
+    const data = dailyNutritionData[dayKey];
+    const canvas = document.getElementById(`chart-${dayKey}`);
+    
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (chartInstances[dayKey]) {
+        chartInstances[dayKey].destroy();
+    }
+    
+    // Create new chart
+    chartInstances[dayKey] = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Protein', 'Fat', 'Carbs'],
+            datasets: [{
+                data: [data.protein, data.fat, data.carbs],
+                backgroundColor: [
+                    '#56A8C7',  // Protein - Blue
+                    '#7CB188',  // Fat - Green
+                    '#A8E6CF'   // Carbs - Light Green
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 14
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            return `${label}: ${value.toFixed(1)}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update nutrition summary
+    const summaryElement = document.getElementById(`nutrition-${dayKey}`);
+    if (summaryElement) {
+        summaryElement.innerHTML = `
+            <div class="nutrition-stats">
+                <div class="nutrition-stat">
+                    <span class="stat-label">Total Calories:</span>
+                    <span class="stat-value">${data.calories} kcal</span>
+                </div>
+                <div class="nutrition-stat">
+                    <span class="stat-label">Protein:</span>
+                    <span class="stat-value">${data.protein_g}g (${data.protein.toFixed(1)}%)</span>
+                </div>
+                <div class="nutrition-stat">
+                    <span class="stat-label">Fat:</span>
+                    <span class="stat-value">${data.fat_g}g (${data.fat.toFixed(1)}%)</span>
+                </div>
+                <div class="nutrition-stat">
+                    <span class="stat-label">Carbs:</span>
+                    <span class="stat-value">${data.carbs_g}g (${data.carbs.toFixed(1)}%)</span>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function switchTab(dayKey) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    const selectedContent = document.getElementById(`content-${dayKey}`);
+    if (selectedContent) {
+        selectedContent.classList.add('active');
+    }
+    
+    // Add active class to selected button
+    const selectedButton = document.getElementById(`tab-${dayKey}`);
+    if (selectedButton) {
+        selectedButton.classList.add('active');
+    }
+    
+    // Reinitialize chart for the selected day (in case it wasn't visible)
+    if (dailyNutritionData[dayKey]) {
+        setTimeout(() => {
+            initializeChart(dayKey);
+        }, 100);
+    }
+}
+</script>
 {% endblock %}

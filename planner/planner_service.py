@@ -740,7 +740,7 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
                 print(f"  [PLANNER] ✓ Day {day} optimized successfully (status: {status})")
             elif status == 'Optimal_Relaxed':
                 print(f"  [PLANNER] ✓ Day {day} optimized with relaxed constraints (status: {status})")
-        else:
+            else:
                 print(f"  [PLANNER] ⚠ Day {day} optimization status: {status}")
             
             # Log deviations
@@ -793,7 +793,6 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
                         for recipe in recipes:
                             if recipe['id'] == recipe_id:
                                 duplicate_names.append(f"{recipe.get('name', 'Unknown')} (ID: {recipe_id}) in {meal_name}")
-            break
                 
                 print(f"[PLANNER] CRITICAL ERROR: Intra-day recipe repetition detected on Day {day}!")
                 print(f"[PLANNER] Duplicate recipe IDs: {set(duplicates)}")
@@ -871,8 +870,8 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
                 print(f"[DATA FLYWHEEL] GeneratedPlan created for Event #{plan_event.id}")
             except Exception as e:
                 print(f"[DATA FLYWHEEL] WARNING: Error logging GeneratedPlan: {e}")
-            
-    return weekly_plan
+        
+        return weekly_plan
         
     except Exception as e:
         # === RESILIENCY: Fallback to Default Plan ===
