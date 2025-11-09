@@ -1,0 +1,386 @@
+{% extends 'planner/base_app.html' %}
+{% load static %}
+
+{% block title %}Dashboard - CNutrition{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/dashboard_new.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <h1 class="dashboard-title">Dashboard</h1>
+        <p class="dashboard-greeting">Welcome back, {{ user.first_name|default:user.username }}! 👋</p>
+    </div>
+    <div class="header-right">
+        <div class="user-menu">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <span class="user-name">{{ user.username }}</span>
+            <i class="fas fa-chevron-down"></i>
+            <div class="user-dropdown">
+                <a href="#" class="dropdown-item"><i class="fas fa-user-circle"></i> My Profile</a>
+                <a href="{% url 'planner:logout' %}" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_plan and plan_data %}
+    <!-- KPI Cards Row -->
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h3 class="kpi-title">Calories</h3>
+                <i class="fas fa-fire kpi-icon"></i>
+            </div>
+            <div class="kpi-chart-container">
+                <canvas id="caloriesChart"></canvas>
+            </div>
+            <div class="kpi-value">
+                <span class="kpi-current" id="caloriesCurrent">0</span>
+                <span class="kpi-target" id="caloriesTarget">/ 2200 kcal</span>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h3 class="kpi-title">Protein</h3>
+                <i class="fas fa-dumbbell kpi-icon"></i>
+            </div>
+            <div class="kpi-chart-container">
+                <canvas id="proteinChart"></canvas>
+            </div>
+            <div class="kpi-value">
+                <span class="kpi-current" id="proteinCurrent">0</span>
+                <span class="kpi-target" id="proteinTarget">/ 150 g</span>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h3 class="kpi-title">Carbs</h3>
+                <i class="fas fa-bread-slice kpi-icon"></i>
+            </div>
+            <div class="kpi-chart-container">
+                <canvas id="carbsChart"></canvas>
+            </div>
+            <div class="kpi-value">
+                <span class="kpi-current" id="carbsCurrent">0</span>
+                <span class="kpi-target" id="carbsTarget">/ 300 g</span>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h3 class="kpi-title">Fat</h3>
+                <i class="fas fa-seedling kpi-icon"></i>
+            </div>
+            <div class="kpi-chart-container">
+                <canvas id="fatChart"></canvas>
+            </div>
+            <div class="kpi-value">
+                <span class="kpi-current" id="fatCurrent">0</span>
+                <span class="kpi-target" id="fatTarget">/ 65 g</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meal Plan Section -->
+    <div class="meal-plan-section">
+        <div class="meal-plan-header">
+            <h2 class="section-title">Your Meal Plan</h2>
+            <div class="day-selector">
+                <button class="day-nav-btn" id="prevDay" onclick="changeDay(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="day-display">
+                    <span id="currentDayName">Day 1</span>
+                    <span id="currentDayDate"></span>
+                </div>
+                <button class="day-nav-btn" id="nextDay" onclick="changeDay(1)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Meal Plan Days -->
+        <div class="meal-plan-days">
+            {% for day_key, day_plan in plan_data.items %}
+                <div class="meal-day {% if forloop.first %}active{% endif %}" data-day="{{ day_key }}">
+                    <!-- Breakfast -->
+                    <div class="meal-category">
+                        <h3 class="meal-category-title">
+                            <i class="fas fa-sun"></i> Breakfast
+                        </h3>
+                        <div class="recipe-cards">
+                            {% if day_plan.Breakfast %}
+                                {% for recipe in day_plan.Breakfast %}
+                                <div class="recipe-card">
+                                    <div class="recipe-image-container">
+                                        <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
+                                        <div class="recipe-overlay">
+                                            <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-action-btn">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }})">
+                                                <i class="fas fa-exchange-alt"></i> Swap
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="recipe-info">
+                                        <h4 class="recipe-name">{{ recipe.name }}</h4>
+                                        <p class="recipe-calories">{{ recipe.avg_calories|floatformat:0 }} Calories</p>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="no-recipes">No breakfast recipes</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Lunch -->
+                    <div class="meal-category">
+                        <h3 class="meal-category-title">
+                            <i class="fas fa-sun"></i> Lunch
+                        </h3>
+                        <div class="recipe-cards">
+                            {% if day_plan.Lunch %}
+                                {% for recipe in day_plan.Lunch %}
+                                <div class="recipe-card">
+                                    <div class="recipe-image-container">
+                                        <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
+                                        <div class="recipe-overlay">
+                                            <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-action-btn">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }})">
+                                                <i class="fas fa-exchange-alt"></i> Swap
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="recipe-info">
+                                        <h4 class="recipe-name">{{ recipe.name }}</h4>
+                                        <p class="recipe-calories">{{ recipe.avg_calories|floatformat:0 }} Calories</p>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="no-recipes">No lunch recipes</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Dinner -->
+                    <div class="meal-category">
+                        <h3 class="meal-category-title">
+                            <i class="fas fa-moon"></i> Dinner
+                        </h3>
+                        <div class="recipe-cards">
+                            {% if day_plan.Dinner %}
+                                {% for recipe in day_plan.Dinner %}
+                                <div class="recipe-card">
+                                    <div class="recipe-image-container">
+                                        <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
+                                        <div class="recipe-overlay">
+                                            <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-action-btn">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }})">
+                                                <i class="fas fa-exchange-alt"></i> Swap
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="recipe-info">
+                                        <h4 class="recipe-name">{{ recipe.name }}</h4>
+                                        <p class="recipe-calories">{{ recipe.avg_calories|floatformat:0 }} Calories</p>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="no-recipes">No dinner recipes</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="fas fa-calendar-plus"></i>
+        </div>
+        <h2 class="empty-state-title">No Meal Plan Yet</h2>
+        <p class="empty-state-text">Create your first personalized meal plan to get started!</p>
+        <a href="{% url 'planner:generate_plan' %}" class="btn btn-primary btn-large">
+            <i class="fas fa-plus"></i> Generate Meal Plan
+        </a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dashboard data from backend
+    const dashboardData = {{ daily_nutrition_data|safe }};
+    const planDays = {{ plan_data_json|safe|default:"{}" }};
+    
+    let currentDayIndex = 0;
+    const dayKeys = Object.keys(planDays || {});
+
+    // Initialize KPI Charts
+    function initKPICharts() {
+        if (!dashboardData || Object.keys(dashboardData).length === 0) {
+            // Set default values if no data
+            updateKPIValues(0, 2200, 0, 150, 0, 300, 0, 65);
+            createDonutChart('caloriesChart', 0, 2200, '#FF6B6B');
+            createDonutChart('proteinChart', 0, 150, '#4ECDC4');
+            createDonutChart('carbsChart', 0, 300, '#FFE66D');
+            createDonutChart('fatChart', 0, 65, '#95E1D3');
+            return;
+        }
+        
+        const firstDayKey = Object.keys(dashboardData)[0];
+        const firstDay = dashboardData[firstDayKey];
+        if (!firstDay) return;
+
+        const value = firstDay.value || {};
+        const target = firstDay.target || {};
+
+        // Update KPI values
+        updateKPIValues(
+            value.calories || 0, target.calories || 2200,
+            value.protein_g || 0, target.protein_g || 150,
+            value.carbs_g || 0, target.carbs_g || 300,
+            value.fat_g || 0, target.fat_g || 65
+        );
+
+        // Create charts
+        createDonutChart('caloriesChart', value.calories || 0, target.calories || 2200, '#FF6B6B');
+        createDonutChart('proteinChart', value.protein_g || 0, target.protein_g || 150, '#4ECDC4');
+        createDonutChart('carbsChart', value.carbs_g || 0, target.carbs_g || 300, '#FFE66D');
+        createDonutChart('fatChart', value.fat_g || 0, target.fat_g || 65, '#95E1D3');
+    }
+
+    function updateKPIValues(cal, calT, prot, protT, carbs, carbsT, fat, fatT) {
+        document.getElementById('caloriesCurrent').textContent = Math.round(cal);
+        document.getElementById('caloriesTarget').textContent = `/ ${Math.round(calT)} kcal`;
+        document.getElementById('proteinCurrent').textContent = Math.round(prot);
+        document.getElementById('proteinTarget').textContent = `/ ${Math.round(protT)} g`;
+        document.getElementById('carbsCurrent').textContent = Math.round(carbs);
+        document.getElementById('carbsTarget').textContent = `/ ${Math.round(carbsT)} g`;
+        document.getElementById('fatCurrent').textContent = Math.round(fat);
+        document.getElementById('fatTarget').textContent = `/ ${Math.round(fatT)} g`;
+    }
+
+    function createDonutChart(canvasId, current, target, color) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+        // Destroy existing chart if it exists
+        if (window.chartInstances && window.chartInstances[canvasId]) {
+            window.chartInstances[canvasId].destroy();
+        }
+
+        const percentage = Math.min((current / target) * 100, 100);
+        const remaining = 100 - percentage;
+
+        if (!window.chartInstances) {
+            window.chartInstances = {};
+        }
+
+        window.chartInstances[canvasId] = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [percentage, remaining],
+                    backgroundColor: [color, '#E0E0E0'],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                cutout: '75%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                },
+                maintainAspectRatio: false,
+            }
+        });
+    }
+
+    // Day Navigation
+    function changeDay(direction) {
+        if (dayKeys.length === 0) return;
+        
+        currentDayIndex += direction;
+        if (currentDayIndex < 0) currentDayIndex = dayKeys.length - 1;
+        if (currentDayIndex >= dayKeys.length) currentDayIndex = 0;
+
+        // Update day display
+        const currentDayKey = dayKeys[currentDayIndex];
+        document.getElementById('currentDayName').textContent = currentDayKey;
+        
+        // Show/hide meal days
+        document.querySelectorAll('.meal-day').forEach((day, index) => {
+            day.classList.toggle('active', index === currentDayIndex);
+        });
+
+        // Update KPI charts with new day data
+        if (dashboardData && dashboardData[currentDayKey]) {
+            const dayData = dashboardData[currentDayKey];
+            const value = dayData.value || {};
+            const target = dayData.target || {};
+
+            updateKPIValues(
+                value.calories || 0, target.calories || 2200,
+                value.protein_g || 0, target.protein_g || 150,
+                value.carbs_g || 0, target.carbs_g || 300,
+                value.fat_g || 0, target.fat_g || 65
+            );
+
+            createDonutChart('caloriesChart', value.calories || 0, target.calories || 2200, '#FF6B6B');
+            createDonutChart('proteinChart', value.protein_g || 0, target.protein_g || 150, '#4ECDC4');
+            createDonutChart('carbsChart', value.carbs_g || 0, target.carbs_g || 300, '#FFE66D');
+            createDonutChart('fatChart', value.fat_g || 0, target.fat_g || 65, '#95E1D3');
+        }
+    }
+
+    function swapRecipe(recipeId) {
+        // Placeholder for swap functionality
+        alert('Swap functionality coming soon!');
+    }
+
+    // User menu dropdown
+    document.addEventListener('DOMContentLoaded', function() {
+        const userMenu = document.querySelector('.user-menu');
+        if (userMenu) {
+            userMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const dropdown = this.querySelector('.user-dropdown');
+                if (dropdown) dropdown.classList.toggle('open');
+            });
+
+            document.addEventListener('click', function() {
+                const dropdown = document.querySelector('.user-dropdown');
+                if (dropdown) dropdown.classList.remove('open');
+            });
+        }
+
+        // Initialize charts
+        initKPICharts();
+
+        // Set initial day
+        if (dayKeys.length > 0) {
+            document.getElementById('currentDayName').textContent = dayKeys[0];
+        }
+    });
+</script>
+{% endblock %}
+

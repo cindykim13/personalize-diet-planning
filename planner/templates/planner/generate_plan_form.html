@@ -1,22 +1,21 @@
-{% extends 'planner/base.html' %}
+{% extends 'planner/base_app.html' %}
 
 {% block title %}Generate Meal Plan - CNutrition{% endblock %}
 
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'planner/css/auth.css' %}">
+<link rel="stylesheet" href="{% static 'planner/css/generate_plan.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="auth-container">
-    <div class="auth-card">
-        <div class="auth-header">
-            <h1>Generate Your Meal Plan</h1>
-            <p>Create a personalized meal plan tailored to your goals and preferences</p>
-        </div>
+<div class="form-container">
+    <div class="form-header">
+        <h1>Generate Your Meal Plan</h1>
+        <p>Create a personalized meal plan tailored to your goals and preferences</p>
+    </div>
 
-        <form method="post" action="{% url 'planner:generate_plan' %}" class="registration-form">
+    <form method="post" action="{% url 'planner:generate_plan' %}" class="plan-form">
             {% csrf_token %}
 
             <div class="form-section">
@@ -111,16 +110,11 @@
                 </div>
             {% endif %}
 
-            <div class="form-actions">
-                <a href="{% url 'planner:dashboard' %}" class="btn btn-secondary btn-large">Cancel</a>
-                <button type="submit" class="btn btn-primary btn-large">Generate Plan</button>
-            </div>
-        </form>
-
-        <div class="auth-footer">
-            <p><a href="{% url 'planner:dashboard' %}" class="auth-link">Back to Dashboard</a></p>
+        <div class="form-actions">
+            <a href="{% url 'planner:dashboard' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-large">Generate Plan</button>
         </div>
-    </div>
+    </form>
 </div>
 {% endblock %}
 

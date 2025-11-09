@@ -870,7 +870,7 @@ def generate_full_meal_plan(user_profile: dict, user_id=None):
                 print(f"[DATA FLYWHEEL] GeneratedPlan created for Event #{plan_event.id}")
             except Exception as e:
                 print(f"[DATA FLYWHEEL] WARNING: Error logging GeneratedPlan: {e}")
-        
+            
         return weekly_plan
         
     except Exception as e:

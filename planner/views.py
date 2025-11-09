@@ -16,7 +16,7 @@ import json
 from .forms import AccountCredentialsForm, PersonalDetailsForm, GeneratePlanForm
 from .models import Recipe, UserProfile, GeneratedPlan, PlanGenerationEvent
 from .planner_service import generate_full_meal_plan
-from .image_utils import get_or_fetch_image_url, get_image_url_for_recipe_dict
+from .image_service import get_or_fetch_image_url, get_image_url_for_recipe_dict
 
 
 PERSONAL_SESSION_KEY = 'planner_registration_personal'
@@ -188,13 +188,8 @@ def dashboard_view(request):
                             recipe_obj = None
                             
                             if recipe_id:
-                                try:
-                                    recipe_obj = Recipe.objects.get(id=recipe_id)
-                                    # Get or fetch image URL (caches in database)
-                                    image_url = get_or_fetch_image_url(recipe_obj)
-                                except Recipe.DoesNotExist:
-                                    # Fallback: use dictionary-based fetching
-                                    image_url = get_image_url_for_recipe_dict(recipe_dict)
+                                # Get or fetch image URL (caches in database) - uses recipe_id
+                                image_url = get_or_fetch_image_url(recipe_id)
                             else:
                                 # No ID, use dictionary-based fetching
                                 image_url = get_image_url_for_recipe_dict(recipe_dict)
@@ -224,15 +219,40 @@ def dashboard_view(request):
                     else:
                         protein_pct = fat_pct = carbs_pct = 0
                     
-                    # Store nutrition data for Chart.js
+                    # Get daily targets from latest event
+                    daily_targets = {
+                        'calories': 2200,
+                        'protein_g': 150,
+                        'carbs_g': 300,
+                        'fat_g': 65,
+                    }
+                    
+                    if latest_event and latest_event.calculated_targets:
+                        try:
+                            targets = latest_event.calculated_targets
+                            daily_targets = {
+                                'calories': targets.get('calories', 2200),
+                                'protein_g': targets.get('protein_g', 150),
+                                'carbs_g': targets.get('carbs_g', 300),
+                                'fat_g': targets.get('fat_g', 65),
+                            }
+                        except:
+                            pass
+                    
+                    # Store nutrition data for Chart.js with values and targets
                     daily_nutrition_data[day_key] = {
-                        'calories': round(day_calories, 1),
-                        'protein': round(protein_pct, 1),
-                        'fat': round(fat_pct, 1),
-                        'carbs': round(carbs_pct, 1),
-                        'protein_g': round(day_protein, 1),
-                        'fat_g': round(day_fat, 1),
-                        'carbs_g': round(day_carbs, 1),
+                        'value': {
+                            'calories': round(day_calories, 1),
+                            'protein_g': round(day_protein, 1),
+                            'fat_g': round(day_fat, 1),
+                            'carbs_g': round(day_carbs, 1),
+                        },
+                        'target': daily_targets,
+                        'percentages': {
+                            'protein': round(protein_pct, 1),
+                            'fat': round(fat_pct, 1),
+                            'carbs': round(carbs_pct, 1),
+                        }
                     }
                 
             except GeneratedPlan.DoesNotExist:
@@ -244,7 +264,7 @@ def dashboard_view(request):
     explore_recipes_with_images = []
     
     for recipe in explore_recipes:
-        image_url = get_or_fetch_image_url(recipe)
+        image_url = get_or_fetch_image_url(recipe.id)
         explore_recipes_with_images.append({
             'id': recipe.id,
             'name': recipe.name,
@@ -252,16 +272,23 @@ def dashboard_view(request):
             'avg_calories': recipe.avg_calories,
         })
     
+    # Convert plan_data to JSON-safe format
+    import json as json_module
+    plan_data_json = json_module.dumps(plan_with_images) if plan_with_images else '{}'
+    nutrition_data_json = json_module.dumps(daily_nutrition_data) if daily_nutrition_data else '{}'
+    
     context = {
         'user': user,
         'user_profile': user_profile,
         'current_plan': current_plan,
         'plan_data': plan_with_images,
-        'daily_nutrition_data': json.dumps(daily_nutrition_data),  # JSON for Chart.js
+        'plan_data_json': plan_data_json,
+        'daily_nutrition_data': nutrition_data_json,
         'explore_recipes': explore_recipes_with_images,
     }
     
-    return render(request, 'planner/dashboard.html', context)
+    # Use new dashboard template for authenticated users
+    return render(request, 'planner/dashboard_new.html', context)
 
 
 @login_required
@@ -346,6 +373,7 @@ def generate_plan_view(request):
         # GET request - display form
         form = GeneratePlanForm(user=user)
     
+    # Use app layout for authenticated users
     return render(request, 'planner/generate_plan_form.html', {
         'form': form,
         'user': user,
@@ -362,7 +390,7 @@ def recipe_detail_view(request, recipe_id):
     recipe = get_object_or_404(Recipe, id=recipe_id)
     
     # Get or fetch image URL
-    image_url = get_or_fetch_image_url(recipe)
+    image_url = get_or_fetch_image_url(recipe_id)
     
     # Parse ingredients and steps (they're stored as JSON)
     ingredients = recipe.ingredients_list if isinstance(recipe.ingredients_list, list) else []

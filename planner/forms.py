@@ -13,10 +13,15 @@ from .models import UserProfile
 class PersonalDetailsForm(forms.Form):
     """Collect personal information for step 1 of the registration wizard."""
 
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other'),
+    ]
+
     first_name = forms.CharField(
         max_length=150,
         label='First Name',
-        help_text='Used to personalise your plan.',
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': 'First name',
@@ -27,7 +32,6 @@ class PersonalDetailsForm(forms.Form):
     last_name = forms.CharField(
         max_length=150,
         label='Last Name',
-        help_text='Displayed on your profile.',
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': 'Last name',
@@ -37,7 +41,6 @@ class PersonalDetailsForm(forms.Form):
     
     email = forms.EmailField(
         label='Email Address',
-        help_text='We send important plan updates here.',
         widget=forms.EmailInput(attrs={
             'class': 'form-input',
             'placeholder': 'you@example.com',
@@ -47,7 +50,6 @@ class PersonalDetailsForm(forms.Form):
     
     date_of_birth = forms.DateField(
         label='Date of Birth',
-        help_text='Must be at least 13 years old.',
         widget=forms.DateInput(attrs={
             'class': 'form-input',
             'type': 'date',
@@ -55,14 +57,28 @@ class PersonalDetailsForm(forms.Form):
         }),
     )
 
+    gender = forms.ChoiceField(
+        label='Gender',
+        choices=GENDER_CHOICES,
+        widget=forms.RadioSelect(attrs={
+            'class': 'gender-input',
+        }),
+    )
+
+    country_code = forms.CharField(
+        max_length=5,
+        required=False,
+        initial='+1',
+        widget=forms.HiddenInput(),
+    )
+
     phone_number = forms.CharField(
         max_length=20,
         required=False,
         label='Phone Number',
-        help_text='Optional contact number.',
         widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': '+1234567890',
+            'class': 'form-input phone-input',
+            'placeholder': 'Phone number',
             'autocomplete': 'tel',
         }),
     )
@@ -87,7 +103,6 @@ class AccountCredentialsForm(UserCreationForm):
     username = forms.CharField(
         max_length=20,
         label='Username',
-        help_text='Up to 20 characters. Letters, numbers, @/./+/-/_ allowed.',
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': 'Choose a username',
@@ -102,7 +117,6 @@ class AccountCredentialsForm(UserCreationForm):
     
     password1 = forms.CharField(
         label='Password',
-        help_text='',
         widget=forms.PasswordInput(attrs={
             'class': 'form-input',
             'placeholder': 'Create a password',
@@ -113,7 +127,6 @@ class AccountCredentialsForm(UserCreationForm):
     
     password2 = forms.CharField(
         label='Confirm Password',
-        help_text='Repeat your password.',
         widget=forms.PasswordInput(attrs={
             'class': 'form-input',
             'placeholder': 'Confirm password',
