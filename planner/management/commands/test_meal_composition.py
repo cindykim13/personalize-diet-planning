@@ -45,13 +45,13 @@ class Command(BaseCommand):
         # We'll use maintain + low_fat for a realistic endurance athlete profile
         
         user_profile = {
-            'age': 28,  # Young, active adult
-            'gender': 'female',
-            'height_cm': 165.0,  # Average height
-            'weight_kg': 55.0,  # Lean, athletic build
+            'age': 30,  # Young, active adult
+            'gender': 'male',
+            'height_cm': 180.0,  # Average height
+            'weight_kg': 75.0,  # Lean, athletic build
             'activity_level': 'very_active',  # Maximizes TDEE and carb needs
-            'primary_goal': 'maintain',
-            'dietary_style': 'low_fat',  # Key parameter: low_fat dietary style maps to High-Carb cluster
+            'primary_goal': 'gain muscle',
+            'dietary_style': 'balanced',  # Key parameter: low_fat dietary style maps to High-Carb cluster
             'pace': 'moderate',
             'number_of_days': 3,  # Quick test with 3 days
             'allergies': '',

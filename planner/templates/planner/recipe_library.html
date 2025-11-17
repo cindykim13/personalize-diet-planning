@@ -1,0 +1,45 @@
+{% extends 'planner/base_app.html' %}
+{% load static %}
+
+{% block title %}Recipe Library - CNutrition{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/recipe_library.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-book"></i> Recipe Library
+    </h1>
+    <p class="page-subtitle">Explore our collection of recipes organized by meal type</p>
+</div>
+
+<!-- Category Cards Grid -->
+<div class="category-grid">
+    {% for category in categories %}
+        <a href="{% url 'planner:recipe_list_by_type' category.slug %}" class="category-card">
+            <div class="category-image-wrapper">
+                {% if category.image_url %}
+                    <img src="{{ category.image_url }}" alt="{{ category.display_name }}" class="category-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
+                {% else %}
+                    <img src="{% static 'planner/images/placeholder.png' %}" alt="{{ category.display_name }}" class="category-image">
+                {% endif %}
+                <div class="category-overlay">
+                    <i class="fas fa-arrow-right category-arrow"></i>
+                </div>
+            </div>
+            <div class="category-info">
+                <h3 class="category-name">{{ category.display_name }}</h3>
+                <p class="category-count">{{ category.count|floatformat:0 }} Recipes</p>
+            </div>
+        </a>
+    {% empty %}
+        <div class="empty-state">
+            <p>No recipe categories found.</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

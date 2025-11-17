@@ -1,0 +1,88 @@
+{% extends 'planner/base_app.html' %}
+{% load static %}
+
+{% block title %}Calculating Your Plan - CNutrition{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/calculation_transparency.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="calculation-container">
+    <div class="calculation-card">
+        <div class="calculation-header">
+            <div class="calculation-icon">
+                <i class="fas fa-calculator"></i>
+            </div>
+            <h1 class="calculation-title">Calculating Your Personalized Plan</h1>
+            <p class="calculation-subtitle">We're analyzing your profile and calculating your nutritional targets</p>
+        </div>
+        
+        <div class="calculation-results">
+            <div class="result-item">
+                <div class="result-label">Basal Metabolic Rate (BMR)</div>
+                <div class="result-value">{{ bmr|floatformat:0 }} kcal</div>
+                <div class="result-description">Your body's baseline energy needs at rest</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Total Daily Energy Expenditure (TDEE)</div>
+                <div class="result-value">{{ tdee|floatformat:0 }} kcal</div>
+                <div class="result-description">Total calories burned based on your activity level</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Goal Adjustment</div>
+                <div class="result-value {% if goal_adjustment < 0 %}negative{% elif goal_adjustment > 0 %}positive{% endif %}">
+                    {{ goal_adjustment|floatformat:0 }} kcal ({{ goal_adjustment_label }})
+                </div>
+                <div class="result-description">Calorie adjustment based on your {{ primary_goal|title }} goal</div>
+            </div>
+            
+            <div class="result-item highlight">
+                <div class="result-label">Final Daily Target</div>
+                <div class="result-value large">{{ target_calories|floatformat:0 }} kcal</div>
+                <div class="result-description">Your personalized daily calorie target</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Target Macronutrient Split</div>
+                <div class="result-value macro-split">
+                    <span class="macro-item protein">{{ protein_pct|floatformat:0 }}% Protein</span>
+                    <span class="macro-item fat">{{ fat_pct|floatformat:0 }}% Fat</span>
+                    <span class="macro-item carbs">{{ carbs_pct|floatformat:0 }}% Carbs</span>
+                </div>
+                <div class="result-description">Optimized for your {{ primary_goal|title }} goal</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Predicted Meal Style</div>
+                <div class="result-value">{{ cluster_name }}</div>
+                <div class="result-description">Recipe cluster selected based on your goals and preferences</div>
+            </div>
+        </div>
+        
+        <div class="calculation-footer">
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+                <p class="loading-text">Now generating your personalized {{ number_of_days }}-day meal plan... This may take a moment.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="{% url 'planner:generate_plan_continue' %}" id="continueForm" style="display: none;">
+    {% csrf_token %}
+</form>
+
+<script>
+    // Automatically submit the form to generate the plan after showing calculations
+    document.addEventListener('DOMContentLoaded', function() {
+        // Submit after a delay to let user see the calculations (3 seconds)
+        setTimeout(function() {
+            document.getElementById('continueForm').submit();
+        }, 3000);
+    });
+</script>
+{% endblock %}
+

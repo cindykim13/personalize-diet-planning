@@ -3,9 +3,13 @@
 
 {% block title %}Login - CNutrition{% endblock %}
 
+{% block auth_header_actions %}
+<a href="{% url 'planner:register' %}" class="auth-header-btn auth-header-btn-secondary">Register</a>
+<a href="{% url 'planner:login' %}" class="auth-header-btn auth-header-btn-primary auth-header-btn-active">Login</a>
+{% endblock %}
+
 {% block auth_content %}
 <div class="auth-header">
-    <img src="{% static 'Logo_transparent.png' %}" alt="CNutrition" class="auth-logo" onerror="this.style.display='none'">
     <h1 class="auth-title">Welcome Back</h1>
     <p class="auth-subtitle">Sign in to continue to your meal plans</p>
 </div>

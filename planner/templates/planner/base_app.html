@@ -33,7 +33,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a href="{% url 'planner:recipe_library' %}" class="nav-link {% if request.resolver_match.url_name == 'recipe_library' or request.resolver_match.url_name == 'recipe_list_by_type' %}active{% endif %}">
                         <i class="fas fa-book nav-icon"></i>
                         <span>Recipe Library</span>
                     </a>
@@ -41,7 +41,7 @@
                 <li class="nav-item">
                     <a href="{% url 'planner:generate_plan' %}" class="nav-link {% if request.resolver_match.url_name == 'generate_plan' %}active{% endif %}">
                         <i class="fas fa-calendar-alt nav-icon"></i>
-                        <span>My Plans</span>
+                        <span>Meal Plans</span>
                     </a>
                 </li>
                 <li class="nav-item">

@@ -233,6 +233,38 @@ class GeneratePlanForm(forms.Form):
         help_text='Optional: Your current weight in kilograms (used for calorie calculations)'
     )
     
+    height_cm = forms.FloatField(
+        label='Height (cm)',
+        required=False,
+        min_value=50.0,
+        max_value=250.0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'step': '0.1',
+            'placeholder': 'e.g., 175.0'
+        }),
+        help_text='Optional: Your height in centimeters (used for BMR calculation)'
+    )
+    
+    ACTIVITY_LEVEL_CHOICES = [
+        ('sedentary', 'Sedentary'),
+        ('light', 'Light'),
+        ('moderate', 'Moderate'),
+        ('active', 'Active'),
+        ('very_active', 'Very Active'),
+    ]
+    
+    activity_level = forms.ChoiceField(
+        label='Activity Level',
+        choices=ACTIVITY_LEVEL_CHOICES,
+        required=False,
+        initial='moderate',
+        widget=forms.Select(attrs={
+            'class': 'form-input'
+        }),
+        help_text='Your daily activity level (used for TDEE calculation)'
+    )
+    
     dietary_style = forms.ChoiceField(
         label='Dietary Style',
         choices=DIETARY_STYLE_CHOICES,
@@ -277,6 +309,12 @@ class GeneratePlanForm(forms.Form):
                     self.fields['allergies'].initial = ', '.join(profile.allergies) if isinstance(profile.allergies, list) else profile.allergies
                 if profile.dislikes:
                     self.fields['dislikes'].initial = ', '.join(profile.dislikes) if isinstance(profile.dislikes, list) else profile.dislikes
+                # Pre-populate height from profile
+                if profile.height_cm:
+                    self.fields['height_cm'].initial = profile.height_cm
+                # Pre-populate activity level from profile
+                if profile.activity_level:
+                    self.fields['activity_level'].initial = profile.activity_level
                 # Get weight from latest plan generation event if available
                 from .models import PlanGenerationEvent
                 try:

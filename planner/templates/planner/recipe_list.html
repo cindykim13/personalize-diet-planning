@@ -1,0 +1,103 @@
+{% extends 'planner/base_app.html' %}
+{% load static %}
+
+{% block title %}{{ display_name }} - Recipe Library - CNutrition{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'planner/css/recipe_library.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="page-header-content">
+        <a href="{% url 'planner:recipe_library' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Library
+        </a>
+        <h1 class="page-title">
+            <i class="fas fa-utensils"></i> {{ display_name }}
+        </h1>
+        <p class="page-subtitle">{{ recipes_page.paginator.count }} recipes available</p>
+    </div>
+</div>
+
+<!-- Recipes Grid -->
+<div class="recipes-grid">
+    {% for recipe in recipes %}
+        <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-card">
+            <div class="recipe-image-wrapper">
+                <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
+                <div class="recipe-overlay">
+                    <i class="fas fa-eye"></i> View Recipe
+                </div>
+            </div>
+            <div class="recipe-info">
+                <h3 class="recipe-name">{{ recipe.name }}</h3>
+                <p class="recipe-calories">{{ recipe.avg_calories|floatformat:0 }} Calories</p>
+            </div>
+        </a>
+    {% empty %}
+        <div class="empty-state">
+            <p>No recipes found in this category.</p>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if recipes_page.paginator.num_pages > 1 %}
+    <div class="pagination-container">
+        <div class="pagination">
+            {% if recipes_page.has_previous %}
+                <a href="?page=1" class="pagination-btn">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+                <a href="?page={{ recipes_page.previous_page_number }}" class="pagination-btn">
+                    <i class="fas fa-angle-left"></i> Prev
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    <i class="fas fa-angle-double-left"></i>
+                </span>
+                <span class="pagination-btn disabled">
+                    <i class="fas fa-angle-left"></i> Prev
+                </span>
+            {% endif %}
+            
+            <div class="pagination-pages">
+                {% for page_num in recipes_page.paginator.page_range %}
+                    {% if page_num == recipes_page.number %}
+                        <span class="pagination-page active">{{ page_num }}</span>
+                    {% elif page_num > recipes_page.number|add:'-3' and page_num < recipes_page.number|add:'3' %}
+                        <a href="?page={{ page_num }}" class="pagination-page">{{ page_num }}</a>
+                    {% elif page_num == 1 or page_num == recipes_page.paginator.num_pages %}
+                        <a href="?page={{ page_num }}" class="pagination-page">{{ page_num }}</a>
+                    {% elif page_num == recipes_page.number|add:'-4' or page_num == recipes_page.number|add:'4' %}
+                        <span class="pagination-ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            {% if recipes_page.has_next %}
+                <a href="?page={{ recipes_page.next_page_number }}" class="pagination-btn">
+                    Next <i class="fas fa-angle-right"></i>
+                </a>
+                <a href="?page={{ recipes_page.paginator.num_pages }}" class="pagination-btn">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    Next <i class="fas fa-angle-right"></i>
+                </span>
+                <span class="pagination-btn disabled">
+                    <i class="fas fa-angle-double-right"></i>
+                </span>
+            {% endif %}
+        </div>
+        
+        <div class="pagination-info">
+            Showing {{ recipes_page.start_index }} to {{ recipes_page.end_index }} of {{ recipes_page.paginator.count }} recipes
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+

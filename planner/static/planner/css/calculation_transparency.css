@@ -1,0 +1,201 @@
+/**
+ * CNutrition - Calculation Transparency Stylesheet
+ * Shows user their BMR, TDEE, and nutritional targets before plan generation
+ */
+
+.calculation-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.calculation-card {
+    background: var(--brand-white);
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(30, 42, 56, 0.08);
+}
+
+.calculation-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid rgba(30, 42, 56, 0.1);
+}
+
+.calculation-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: var(--gradient-action);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--brand-white);
+}
+
+.calculation-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+    background: var(--gradient-background);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.calculation-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.calculation-results {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.result-item {
+    padding: 1.5rem;
+    background: var(--brand-ice);
+    border-radius: 12px;
+    border-left: 4px solid var(--brand-cobalt);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.result-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+}
+
+.result-item.highlight {
+    background: linear-gradient(135deg, rgba(95, 139, 196, 0.1), rgba(124, 177, 136, 0.1));
+    border-left-color: var(--brand-sage);
+}
+
+.result-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.result-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.result-value.large {
+    font-size: 2.5rem;
+    color: var(--brand-cobalt);
+}
+
+.result-value.negative {
+    color: #FF6B6B;
+}
+
+.result-value.positive {
+    color: var(--brand-sage);
+}
+
+.result-value.macro-split {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 1.25rem;
+}
+
+.macro-item {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.macro-item.protein {
+    background: rgba(78, 205, 196, 0.2);
+    color: #4ECDC4;
+}
+
+.macro-item.fat {
+    background: rgba(149, 225, 211, 0.2);
+    color: #95E1D3;
+}
+
+.macro-item.carbs {
+    background: rgba(255, 230, 109, 0.2);
+    color: #FFE66D;
+}
+
+.result-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.calculation-footer {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 2px solid rgba(30, 42, 56, 0.1);
+}
+
+.loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(30, 42, 56, 0.1);
+    border-top-color: var(--brand-cobalt);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .calculation-card {
+        padding: 2rem 1.5rem;
+    }
+    
+    .calculation-title {
+        font-size: 1.5rem;
+    }
+    
+    .result-value {
+        font-size: 1.5rem;
+    }
+    
+    .result-value.large {
+        font-size: 2rem;
+    }
+    
+    .result-value.macro-split {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+

@@ -908,12 +908,16 @@ def _handle_fallback(primary_goal: str, number_of_days: int, plan_event, daily_t
     try:
         # Query for successful GeneratedPlan with matching primary_goal
         # Prefer plans with same number_of_days, but accept others if needed
-        similar_events = PlanGenerationEvent.objects.filter(
+        query = PlanGenerationEvent.objects.filter(
             primary_goal=primary_goal,
             status='success'
-        ).exclude(
-            id=plan_event.id if plan_event else None
-        ).order_by(
+        )
+        
+        # Exclude current event if it exists
+        if plan_event and plan_event.id:
+            query = query.exclude(id=plan_event.id)
+        
+        similar_events = query.order_by(
             '-created_at'  # Most recent first
         )[:10]  # Check up to 10 recent successful plans
         

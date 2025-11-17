@@ -44,6 +44,7 @@ def get_or_fetch_image_url(recipe_id: int) -> str:
     :return: Image URL string (cached, fetched, or placeholder)
     """
     from .models import Recipe
+    from django.db import transaction
     
     # Step 1: Check Database Cache (Cache Hit)
     try:
@@ -64,19 +65,47 @@ def get_or_fetch_image_url(recipe_id: int) -> str:
     # Step 2: Attempt Spoonacular API (Primary Source)
     spoonacular_url = _fetch_from_spoonacular(recipe_name)
     if spoonacular_url and spoonacular_url != DEFAULT_PLACEHOLDER:
-        # Cache Write: Save to database
-        recipe.image_url = spoonacular_url
-        recipe.save(update_fields=['image_url'])
-        print(f"[IMAGE_SERVICE] ✓ Cached Spoonacular image for '{recipe_name}' (ID: {recipe_id})")
+        # Cache Write: Save to database with transaction to ensure persistence
+        try:
+            with transaction.atomic():
+                # Re-fetch recipe to ensure we have fresh object for saving
+                recipe_to_save = Recipe.objects.get(id=recipe_id)
+                recipe_to_save.image_url = spoonacular_url
+                recipe_to_save.save(update_fields=['image_url'])
+                # Verify the save was successful by re-querying
+                verified_recipe = Recipe.objects.get(id=recipe_id)
+                if verified_recipe.image_url == spoonacular_url:
+                    print(f"[IMAGE_SERVICE] ✓ Cached Spoonacular image for '{recipe_name}' (ID: {recipe_id})")
+                else:
+                    print(f"[IMAGE_SERVICE] ⚠ Failed to verify cache write for '{recipe_name}' (ID: {recipe_id})")
+        except Exception as e:
+            print(f"[IMAGE_SERVICE] ⚠ Error saving image URL to database: {e}")
+            import traceback
+            print(traceback.format_exc())
+        # Return URL even if save failed (at least we have the image for this request)
         return spoonacular_url
     
     # Step 3: Attempt Unsplash API (Fallback Source)
     unsplash_url = _fetch_from_unsplash(recipe_name)
     if unsplash_url and unsplash_url != DEFAULT_PLACEHOLDER:
-        # Cache Write: Save to database
-        recipe.image_url = unsplash_url
-        recipe.save(update_fields=['image_url'])
-        print(f"[IMAGE_SERVICE] ✓ Cached Unsplash image for '{recipe_name}' (ID: {recipe_id})")
+        # Cache Write: Save to database with transaction to ensure persistence
+        try:
+            with transaction.atomic():
+                # Re-fetch recipe to ensure we have fresh object for saving
+                recipe_to_save = Recipe.objects.get(id=recipe_id)
+                recipe_to_save.image_url = unsplash_url
+                recipe_to_save.save(update_fields=['image_url'])
+                # Verify the save was successful by re-querying
+                verified_recipe = Recipe.objects.get(id=recipe_id)
+                if verified_recipe.image_url == unsplash_url:
+                    print(f"[IMAGE_SERVICE] ✓ Cached Unsplash image for '{recipe_name}' (ID: {recipe_id})")
+                else:
+                    print(f"[IMAGE_SERVICE] ⚠ Failed to verify cache write for '{recipe_name}' (ID: {recipe_id})")
+        except Exception as e:
+            print(f"[IMAGE_SERVICE] ⚠ Error saving image URL to database: {e}")
+            import traceback
+            print(traceback.format_exc())
+        # Return URL even if save failed (at least we have the image for this request)
         return unsplash_url
     
     # Step 4: Final Fallback - Placeholder

@@ -116,73 +116,194 @@
 }
 
 /* ============================================
-   KPI CARDS
+   NUTRITION OVERVIEW CARD
    ============================================ */
 
-.kpi-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
+.nutrition-overview-card {
+    background: var(--brand-white);
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(30, 42, 56, 0.08);
     margin-bottom: 2.5rem;
 }
 
-.kpi-card {
-    background: var(--brand-white);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid rgba(30, 42, 56, 0.08);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+.nutrition-card-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(30, 42, 56, 0.08);
 }
 
-.kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-}
-
-.kpi-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.kpi-title {
-    font-size: 1.1rem;
-    font-weight: 600;
+.nutrition-card-title {
+    font-size: 1.5rem;
+    font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-}
-
-.kpi-icon {
-    font-size: 1.5rem;
-    color: var(--brand-cobalt);
-    opacity: 0.7;
-}
-
-.kpi-chart-container {
-    width: 100%;
-    height: 120px;
-    margin: 1rem 0;
-    position: relative;
-}
-
-.kpi-value {
     display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    align-items: center;
+    gap: 0.75rem;
 }
 
-.kpi-current {
+.nutrition-card-title i {
+    color: #FF6B6B;
+}
+
+.nutrition-card-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+/* Calories Chart Section */
+.calories-chart-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.calories-chart-wrapper {
+    position: relative;
+    width: 280px;
+    height: 280px;
+}
+
+.calories-chart-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.calories-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+}
+
+.calories-left {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.calories-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.calories-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.calories-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-value {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.kpi-target {
-    font-size: 1rem;
+.stat-label {
+    font-size: 0.85rem;
     color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.calories-divider {
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+/* Macronutrients Section */
+.macros-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.macro-progress-item {
+    width: 100%;
+}
+
+.macro-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.macro-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.macro-icon {
+    font-size: 1.25rem;
+}
+
+.macro-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.macro-values {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.macro-current {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.macro-target {
+    color: var(--text-secondary);
+}
+
+.macro-progress-bar {
+    width: 100%;
+    height: 12px;
+    background: rgba(30, 42, 56, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.macro-progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+    .nutrition-card-content {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    .calories-chart-wrapper {
+        width: 240px;
+        height: 240px;
+    }
 }
 
 /* ============================================
@@ -278,11 +399,18 @@
     margin-bottom: 0;
 }
 
+.meal-category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
 .meal-category-title {
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0 0 1.5rem 0;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -290,6 +418,37 @@
 
 .meal-category-title i {
     color: var(--brand-cobalt);
+}
+
+.meal-log-btn {
+    padding: 0.5rem 1rem;
+    background: var(--brand-sage);
+    color: var(--brand-white);
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all var(--transition-fast);
+    font-size: 0.9rem;
+}
+
+.meal-log-btn:hover {
+    background: var(--brand-cobalt);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.meal-log-btn.logged {
+    background: var(--brand-cobalt);
+    opacity: 0.8;
+}
+
+.meal-log-btn.logged:hover {
+    opacity: 1;
 }
 
 .recipe-cards {

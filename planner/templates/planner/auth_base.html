@@ -5,19 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CNutrition - Personalized Meal Plan Generator{% endblock %}</title>
     {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'planner/css/main.css' %}">
     <link rel="stylesheet" href="{% static 'planner/css/auth.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="auth-page">
-    <!-- Animated Background -->
+    <!-- Background Video -->
     <div class="auth-background">
+        <video autoplay muted loop playsinline class="auth-background-video" id="authVideo">
+            <!-- Bright, fresh, healthy food video - colorful vegetables being washed/chopped -->
+            <source src="https://videos.pexels.com/video-files/3298680/3298680-hd_1920_1080_25fps.mp4" type="video/mp4">
+            <!-- Fallback: Fresh salad preparation - top-down view -->
+            <source src="https://videos.pexels.com/video-files/3045163/3045163-hd_1920_1080_25fps.mp4" type="video/mp4">
+            <!-- Second fallback: Colorful fruits and berries -->
+            <source src="https://videos.pexels.com/video-files/3209828/3209828-hd_1920_1080_25fps.mp4" type="video/mp4">
+        </video>
+        <!-- Fallback gradient (shown if video fails to load) -->
+        <div class="auth-background-gradient" id="authGradientFallback"></div>
         <div class="auth-background-overlay"></div>
-        <div class="auth-background-gradient"></div>
     </div>
 
-    <!-- Auth Container -->
+    <!-- Global Header / Navigation Bar -->
+    <header class="auth-global-header">
+        <div class="auth-header-container">
+            <!-- Branding (Left Side) -->
+            <div class="auth-header-branding">
+                <a href="{% url 'planner:dashboard' %}" class="auth-brand-link">
+                    <img src="{% static 'Logo_transparent.png' %}" alt="CNutrition Logo" class="auth-header-logo" onerror="this.style.display='none'">
+                    <h1 class="auth-header-brandname-text">CNutrition</h1>
+                </a>
+            </div>
+            
+            <!-- Action Buttons (Right Side) -->
+            <div class="auth-header-actions">
+                {% block auth_header_actions %}
+                <a href="{% url 'planner:register' %}" class="auth-header-btn auth-header-btn-secondary">Register</a>
+                <a href="{% url 'planner:login' %}" class="auth-header-btn auth-header-btn-primary">Login</a>
+                {% endblock %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Auth Container (Central Form) -->
     <div class="auth-container">
         <div class="auth-card">
             {% block auth_content %}{% endblock %}
@@ -25,6 +58,36 @@
     </div>
 
     {% block extra_js %}{% endblock %}
+    <script>
+        // Video fallback handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('authVideo');
+            const gradient = document.getElementById('authGradientFallback');
+            
+            if (video) {
+                video.addEventListener('error', function() {
+                    // Video failed to load, show gradient fallback
+                    if (gradient) {
+                        gradient.style.display = 'block';
+                    }
+                    if (video) {
+                        video.style.display = 'none';
+                    }
+                });
+                
+                // Check if video can play
+                video.play().catch(function(error) {
+                    // Video cannot play, show gradient fallback
+                    if (gradient) {
+                        gradient.style.display = 'block';
+                    }
+                    if (video) {
+                        video.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
 

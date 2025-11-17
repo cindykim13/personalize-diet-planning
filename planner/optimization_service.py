@@ -933,9 +933,7 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
                             result['deviations'] = deviations
                             result['actual_nutrients'] = actual_nutrients
                             
-                            # Cleanup relaxed problem
-                            prob_relaxed.variables.clear()
-                            prob_relaxed.constraints.clear()
+                            # Cleanup relaxed problem (Python GC will handle PuLP objects)
                             del prob_relaxed
                             del recipe_vars_relaxed
                             del pos_dev_relaxed
@@ -946,10 +944,8 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
                     else:
                         print(f"[OPTIMIZER] Fallback also failed. Status: {status_relaxed}")
                         result = None
-                        # Cleanup
+                        # Cleanup (Python GC will handle PuLP objects)
                         try:
-                            prob_relaxed.variables.clear()
-                            prob_relaxed.constraints.clear()
                             del prob_relaxed
                         except:
                             pass
@@ -963,11 +959,10 @@ def create_daily_plan_global(recipe_pools: dict, daily_target_nutrients: dict,
         # This MUST happen after extracting results, even if there's an error
         # PuLP's CBC solver spawns subprocesses that must be properly terminated
         # to prevent resource leaks causing hangs on subsequent solves
+        # NOTE: Python's garbage collector will handle PuLP object cleanup automatically
+        # The gc.collect() call in planner_service.py ensures subprocess cleanup
         try:
-            # Clear problem data structures to release memory and subprocess handles
-            prob.variables.clear()
-            prob.constraints.clear()
-            # Force deletion to trigger garbage collection
+            # Delete problem object to trigger garbage collection
             del prob
             # Also clean up recipe_vars dictionary to release memory
             del recipe_vars

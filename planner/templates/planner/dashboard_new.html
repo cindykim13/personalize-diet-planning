@@ -30,61 +30,89 @@
 </div>
 
 {% if current_plan and plan_data %}
-    <!-- KPI Cards Row -->
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-header">
-                <h3 class="kpi-title">Calories</h3>
-                <i class="fas fa-fire kpi-icon"></i>
-            </div>
-            <div class="kpi-chart-container">
-                <canvas id="caloriesChart"></canvas>
-            </div>
-            <div class="kpi-value">
-                <span class="kpi-current" id="caloriesCurrent">0</span>
-                <span class="kpi-target" id="caloriesTarget">/ 2200 kcal</span>
-            </div>
+    <!-- Primary Nutrition Card -->
+    <div class="nutrition-overview-card">
+        <div class="nutrition-card-header">
+            <h2 class="nutrition-card-title">
+                <i class="fas fa-fire"></i> Daily Nutrition Overview
+            </h2>
         </div>
-
-        <div class="kpi-card">
-            <div class="kpi-header">
-                <h3 class="kpi-title">Protein</h3>
-                <i class="fas fa-dumbbell kpi-icon"></i>
+        
+        <div class="nutrition-card-content">
+            <!-- Left: Large Calories Donut Chart -->
+            <div class="calories-chart-section">
+                <div class="calories-chart-wrapper">
+                    <canvas id="caloriesChart"></canvas>
+                    <div class="calories-center-text">
+                        <div class="calories-left" id="caloriesLeft">0</div>
+                        <div class="calories-label">kcal left</div>
+                    </div>
+                </div>
+                <div class="calories-stats">
+                    <div class="calories-stat">
+                        <span class="stat-value" id="caloriesConsumed">0</span>
+                        <span class="stat-label">Consumed</span>
+                    </div>
+                    <div class="calories-divider">/</div>
+                    <div class="calories-stat">
+                        <span class="stat-value" id="caloriesTargetValue">2200</span>
+                        <span class="stat-label">Target</span>
+                    </div>
+                </div>
             </div>
-            <div class="kpi-chart-container">
-                <canvas id="proteinChart"></canvas>
-            </div>
-            <div class="kpi-value">
-                <span class="kpi-current" id="proteinCurrent">0</span>
-                <span class="kpi-target" id="proteinTarget">/ 150 g</span>
-            </div>
-        </div>
-
-        <div class="kpi-card">
-            <div class="kpi-header">
-                <h3 class="kpi-title">Carbs</h3>
-                <i class="fas fa-bread-slice kpi-icon"></i>
-            </div>
-            <div class="kpi-chart-container">
-                <canvas id="carbsChart"></canvas>
-            </div>
-            <div class="kpi-value">
-                <span class="kpi-current" id="carbsCurrent">0</span>
-                <span class="kpi-target" id="carbsTarget">/ 300 g</span>
-            </div>
-        </div>
-
-        <div class="kpi-card">
-            <div class="kpi-header">
-                <h3 class="kpi-title">Fat</h3>
-                <i class="fas fa-seedling kpi-icon"></i>
-            </div>
-            <div class="kpi-chart-container">
-                <canvas id="fatChart"></canvas>
-            </div>
-            <div class="kpi-value">
-                <span class="kpi-current" id="fatCurrent">0</span>
-                <span class="kpi-target" id="fatTarget">/ 65 g</span>
+            
+            <!-- Right: Macronutrient Progress Bars -->
+            <div class="macros-section">
+                <!-- Protein Progress Bar -->
+                <div class="macro-progress-item">
+                    <div class="macro-header">
+                        <div class="macro-info">
+                            <i class="fas fa-dumbbell macro-icon" style="color: #4ECDC4;"></i>
+                            <span class="macro-name">Protein</span>
+                        </div>
+                        <div class="macro-values">
+                            <span class="macro-current" id="proteinCurrent">0</span>
+                            <span class="macro-target">/ <span id="proteinTargetValue">150</span>g</span>
+                        </div>
+                    </div>
+                    <div class="macro-progress-bar">
+                        <div class="macro-progress-fill" id="proteinProgress" style="background: #4ECDC4; width: 0%;"></div>
+                    </div>
+                </div>
+                
+                <!-- Carbs Progress Bar -->
+                <div class="macro-progress-item">
+                    <div class="macro-header">
+                        <div class="macro-info">
+                            <i class="fas fa-bread-slice macro-icon" style="color: #FFE66D;"></i>
+                            <span class="macro-name">Carbs</span>
+                        </div>
+                        <div class="macro-values">
+                            <span class="macro-current" id="carbsCurrent">0</span>
+                            <span class="macro-target">/ <span id="carbsTargetValue">300</span>g</span>
+                        </div>
+                    </div>
+                    <div class="macro-progress-bar">
+                        <div class="macro-progress-fill" id="carbsProgress" style="background: #FFE66D; width: 0%;"></div>
+                    </div>
+                </div>
+                
+                <!-- Fat Progress Bar -->
+                <div class="macro-progress-item">
+                    <div class="macro-header">
+                        <div class="macro-info">
+                            <i class="fas fa-seedling macro-icon" style="color: #95E1D3;"></i>
+                            <span class="macro-name">Fat</span>
+                        </div>
+                        <div class="macro-values">
+                            <span class="macro-current" id="fatCurrent">0</span>
+                            <span class="macro-target">/ <span id="fatTargetValue">65</span>g</span>
+                        </div>
+                    </div>
+                    <div class="macro-progress-bar">
+                        <div class="macro-progress-fill" id="fatProgress" style="background: #95E1D3; width: 0%;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -113,20 +141,25 @@
                 <div class="meal-day {% if forloop.first %}active{% endif %}" data-day="{{ day_key }}">
                     <!-- Breakfast -->
                     <div class="meal-category">
-                        <h3 class="meal-category-title">
-                            <i class="fas fa-sun"></i> Breakfast
-                        </h3>
+                        <div class="meal-category-header">
+                            <h3 class="meal-category-title">
+                                <i class="fas fa-sun"></i> Breakfast
+                            </h3>
+                            <button type="button" class="meal-log-btn" data-meal="Breakfast" data-day="{{ day_key }}" onclick="logMeal('{{ day_key }}', 'Breakfast')">
+                                <i class="fas fa-check-circle"></i> Log Meal
+                            </button>
+                        </div>
                         <div class="recipe-cards">
                             {% if day_plan.Breakfast %}
                                 {% for recipe in day_plan.Breakfast %}
-                                <div class="recipe-card">
+                                <div class="recipe-card" data-recipe-id="{{ recipe.id }}">
                                     <div class="recipe-image-container">
                                         <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
                                         <div class="recipe-overlay">
                                             <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-action-btn">
                                                 <i class="fas fa-eye"></i> View
                                             </a>
-                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }})">
+                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }}, '{{ day_key }}', 'Breakfast')">
                                                 <i class="fas fa-exchange-alt"></i> Swap
                                             </button>
                                         </div>
@@ -145,20 +178,25 @@
 
                     <!-- Lunch -->
                     <div class="meal-category">
-                        <h3 class="meal-category-title">
-                            <i class="fas fa-sun"></i> Lunch
-                        </h3>
+                        <div class="meal-category-header">
+                            <h3 class="meal-category-title">
+                                <i class="fas fa-sun"></i> Lunch
+                            </h3>
+                            <button type="button" class="meal-log-btn" data-meal="Lunch" data-day="{{ day_key }}" onclick="logMeal('{{ day_key }}', 'Lunch')">
+                                <i class="fas fa-check-circle"></i> Log Meal
+                            </button>
+                        </div>
                         <div class="recipe-cards">
                             {% if day_plan.Lunch %}
                                 {% for recipe in day_plan.Lunch %}
-                                <div class="recipe-card">
+                                <div class="recipe-card" data-recipe-id="{{ recipe.id }}">
                                     <div class="recipe-image-container">
                                         <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
                                         <div class="recipe-overlay">
                                             <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-action-btn">
                                                 <i class="fas fa-eye"></i> View
                                             </a>
-                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }})">
+                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }}, '{{ day_key }}', 'Lunch')">
                                                 <i class="fas fa-exchange-alt"></i> Swap
                                             </button>
                                         </div>
@@ -177,20 +215,25 @@
 
                     <!-- Dinner -->
                     <div class="meal-category">
-                        <h3 class="meal-category-title">
-                            <i class="fas fa-moon"></i> Dinner
-                        </h3>
+                        <div class="meal-category-header">
+                            <h3 class="meal-category-title">
+                                <i class="fas fa-moon"></i> Dinner
+                            </h3>
+                            <button type="button" class="meal-log-btn" data-meal="Dinner" data-day="{{ day_key }}" onclick="logMeal('{{ day_key }}', 'Dinner')">
+                                <i class="fas fa-check-circle"></i> Log Meal
+                            </button>
+                        </div>
                         <div class="recipe-cards">
                             {% if day_plan.Dinner %}
                                 {% for recipe in day_plan.Dinner %}
-                                <div class="recipe-card">
+                                <div class="recipe-card" data-recipe-id="{{ recipe.id }}">
                                     <div class="recipe-image-container">
                                         <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image" onerror="this.onerror=null;this.src='{% static 'planner/images/placeholder.png' %}'">
                                         <div class="recipe-overlay">
                                             <a href="{% url 'planner:recipe_detail' recipe.id %}" class="recipe-action-btn">
                                                 <i class="fas fa-eye"></i> View
                                             </a>
-                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }})">
+                                            <button type="button" class="recipe-action-btn" onclick="swapRecipe({{ recipe.id }}, '{{ day_key }}', 'Dinner')">
                                                 <i class="fas fa-exchange-alt"></i> Swap
                                             </button>
                                         </div>
@@ -238,11 +281,11 @@
     function initKPICharts() {
         if (!dashboardData || Object.keys(dashboardData).length === 0) {
             // Set default values if no data
-            updateKPIValues(0, 2200, 0, 150, 0, 300, 0, 65);
-            createDonutChart('caloriesChart', 0, 2200, '#FF6B6B');
-            createDonutChart('proteinChart', 0, 150, '#4ECDC4');
-            createDonutChart('carbsChart', 0, 300, '#FFE66D');
-            createDonutChart('fatChart', 0, 65, '#95E1D3');
+            updateNutritionDisplay(0, 2200, 0, 150, 0, 300, 0, 65);
+            createCaloriesChart(0, 2200);
+            updateProgressBar('proteinProgress', 0, 150);
+            updateProgressBar('carbsProgress', 0, 300);
+            updateProgressBar('fatProgress', 0, 65);
             return;
         }
         
@@ -253,59 +296,66 @@
         const value = firstDay.value || {};
         const target = firstDay.target || {};
 
-        // Update KPI values
-        updateKPIValues(
+        // Update nutrition display
+        updateNutritionDisplay(
             value.calories || 0, target.calories || 2200,
             value.protein_g || 0, target.protein_g || 150,
             value.carbs_g || 0, target.carbs_g || 300,
             value.fat_g || 0, target.fat_g || 65
         );
 
-        // Create charts
-        createDonutChart('caloriesChart', value.calories || 0, target.calories || 2200, '#FF6B6B');
-        createDonutChart('proteinChart', value.protein_g || 0, target.protein_g || 150, '#4ECDC4');
-        createDonutChart('carbsChart', value.carbs_g || 0, target.carbs_g || 300, '#FFE66D');
-        createDonutChart('fatChart', value.fat_g || 0, target.fat_g || 65, '#95E1D3');
+        // Create calories donut chart
+        createCaloriesChart(value.calories || 0, target.calories || 2200);
+        
+        // Update progress bars
+        updateProgressBar('proteinProgress', value.protein_g || 0, target.protein_g || 150);
+        updateProgressBar('carbsProgress', value.carbs_g || 0, target.carbs_g || 300);
+        updateProgressBar('fatProgress', value.fat_g || 0, target.fat_g || 65);
     }
 
-    function updateKPIValues(cal, calT, prot, protT, carbs, carbsT, fat, fatT) {
-        document.getElementById('caloriesCurrent').textContent = Math.round(cal);
-        document.getElementById('caloriesTarget').textContent = `/ ${Math.round(calT)} kcal`;
+    function updateNutritionDisplay(cal, calT, prot, protT, carbs, carbsT, fat, fatT) {
+        // Calories
+        const caloriesLeft = Math.max(0, Math.round(calT - cal));
+        document.getElementById('caloriesLeft').textContent = caloriesLeft;
+        document.getElementById('caloriesConsumed').textContent = Math.round(cal);
+        document.getElementById('caloriesTargetValue').textContent = Math.round(calT);
+        
+        // Protein
         document.getElementById('proteinCurrent').textContent = Math.round(prot);
-        document.getElementById('proteinTarget').textContent = `/ ${Math.round(protT)} g`;
+        document.getElementById('proteinTargetValue').textContent = Math.round(protT);
+        
+        // Carbs
         document.getElementById('carbsCurrent').textContent = Math.round(carbs);
-        document.getElementById('carbsTarget').textContent = `/ ${Math.round(carbsT)} g`;
+        document.getElementById('carbsTargetValue').textContent = Math.round(carbsT);
+        
+        // Fat
         document.getElementById('fatCurrent').textContent = Math.round(fat);
-        document.getElementById('fatTarget').textContent = `/ ${Math.round(fatT)} g`;
+        document.getElementById('fatTargetValue').textContent = Math.round(fatT);
     }
 
-    function createDonutChart(canvasId, current, target, color) {
-        const ctx = document.getElementById(canvasId);
+    function createCaloriesChart(current, target) {
+        const ctx = document.getElementById('caloriesChart');
         if (!ctx) return;
 
         // Destroy existing chart if it exists
-        if (window.chartInstances && window.chartInstances[canvasId]) {
-            window.chartInstances[canvasId].destroy();
+        if (window.caloriesChartInstance) {
+            window.caloriesChartInstance.destroy();
         }
 
         const percentage = Math.min((current / target) * 100, 100);
         const remaining = 100 - percentage;
 
-        if (!window.chartInstances) {
-            window.chartInstances = {};
-        }
-
-        window.chartInstances[canvasId] = new Chart(ctx, {
+        window.caloriesChartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 datasets: [{
                     data: [percentage, remaining],
-                    backgroundColor: [color, '#E0E0E0'],
+                    backgroundColor: ['#FF6B6B', '#E0E0E0'],
                     borderWidth: 0,
                 }]
             },
             options: {
-                cutout: '75%',
+                cutout: '70%',
                 plugins: {
                     legend: { display: false },
                     tooltip: { enabled: false }
@@ -313,6 +363,45 @@
                 maintainAspectRatio: false,
             }
         });
+    }
+
+    function updateProgressBar(barId, current, target) {
+        const bar = document.getElementById(barId);
+        if (!bar) return;
+        
+        const percentage = Math.min((current / target) * 100, 100);
+        bar.style.width = percentage + '%';
+    }
+    
+    // PART 5: Update Day Display Function (used by meal logging and day navigation)
+    function updateDayDisplay(dayKey) {
+        if (!dashboardData || !dashboardData[dayKey]) {
+            // Set defaults if no data
+            updateNutritionDisplay(0, 2200, 0, 150, 0, 300, 0, 65);
+            createCaloriesChart(0, 2200);
+            updateProgressBar('proteinProgress', 0, 150);
+            updateProgressBar('carbsProgress', 0, 300);
+            updateProgressBar('fatProgress', 0, 65);
+            return;
+        }
+        
+        const dayData = dashboardData[dayKey];
+        const value = dayData.value || {};
+        const target = dayData.target || {};
+        
+        // Update nutrition display
+        updateNutritionDisplay(
+            value.calories || 0, target.calories || 2200,
+            value.protein_g || 0, target.protein_g || 150,
+            value.carbs_g || 0, target.carbs_g || 300,
+            value.fat_g || 0, target.fat_g || 65
+        );
+        
+        // Update charts
+        createCaloriesChart(value.calories || 0, target.calories || 2200);
+        updateProgressBar('proteinProgress', value.protein_g || 0, target.protein_g || 150);
+        updateProgressBar('carbsProgress', value.carbs_g || 0, target.carbs_g || 300);
+        updateProgressBar('fatProgress', value.fat_g || 0, target.fat_g || 65);
     }
 
     // Day Navigation
@@ -332,30 +421,256 @@
             day.classList.toggle('active', index === currentDayIndex);
         });
 
-        // Update KPI charts with new day data
+        // Update KPI charts with new day data using updateDayDisplay
         if (dashboardData && dashboardData[currentDayKey]) {
-            const dayData = dashboardData[currentDayKey];
-            const value = dayData.value || {};
-            const target = dayData.target || {};
-
-            updateKPIValues(
-                value.calories || 0, target.calories || 2200,
-                value.protein_g || 0, target.protein_g || 150,
-                value.carbs_g || 0, target.carbs_g || 300,
-                value.fat_g || 0, target.fat_g || 65
-            );
-
-            createDonutChart('caloriesChart', value.calories || 0, target.calories || 2200, '#FF6B6B');
-            createDonutChart('proteinChart', value.protein_g || 0, target.protein_g || 150, '#4ECDC4');
-            createDonutChart('carbsChart', value.carbs_g || 0, target.carbs_g || 300, '#FFE66D');
-            createDonutChart('fatChart', value.fat_g || 0, target.fat_g || 65, '#95E1D3');
+            updateDayDisplay(currentDayKey);
         }
     }
+    
+    // Make updateDayDisplay available globally
+    window.updateDayDisplay = updateDayDisplay;
 
-    function swapRecipe(recipeId) {
-        // Placeholder for swap functionality
-        alert('Swap functionality coming soon!');
+    // PART 2: Smart Swap Functionality
+    function swapRecipe(recipeId, dayKey, mealName) {
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                         document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        
+        // Show loading state
+        const recipeCard = document.querySelector(`.recipe-card[data-recipe-id="${recipeId}"]`);
+        if (!recipeCard) return;
+        
+        const swapBtn = recipeCard.querySelector('.recipe-action-btn[onclick*="swapRecipe"]');
+        if (swapBtn) {
+            swapBtn.disabled = true;
+            swapBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Swapping...';
+        }
+        
+        // Make AJAX request to swap endpoint
+        const formData = new URLSearchParams();
+        formData.append('recipe_id', recipeId);
+        formData.append('meal_name', mealName);
+        formData.append('day_key', dayKey);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        fetch('{% url "planner:swap_recipe" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: formData.toString()
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update recipe card with new recipe
+                const recipeImage = recipeCard.querySelector('.recipe-image');
+                const recipeName = recipeCard.querySelector('.recipe-name');
+                const recipeCalories = recipeCard.querySelector('.recipe-calories');
+                const viewLink = recipeCard.querySelector('a[href*="recipe_detail"]');
+                
+                if (recipeImage) recipeImage.src = data.recipe.image_url;
+                if (recipeName) recipeName.textContent = data.recipe.name;
+                if (recipeCalories) recipeCalories.textContent = Math.round(data.recipe.avg_calories) + ' Calories';
+                if (viewLink) viewLink.href = `/recipe/${data.recipe.id}/`;
+                
+                // Update recipe ID
+                recipeCard.setAttribute('data-recipe-id', data.recipe.id);
+                
+                // Update swap button onclick
+                if (swapBtn) {
+                    swapBtn.setAttribute('onclick', `swapRecipe(${data.recipe.id}, '${dayKey}', '${mealName}')`);
+                    swapBtn.disabled = false;
+                    swapBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap';
+                }
+                
+                // Update planDays data structure
+                if (planDays && planDays[dayKey] && planDays[dayKey][mealName]) {
+                    const mealRecipes = planDays[dayKey][mealName];
+                    const recipeIndex = mealRecipes.findIndex(r => r.id === recipeId);
+                    if (recipeIndex !== -1) {
+                        mealRecipes[recipeIndex] = data.recipe;
+                    }
+                }
+                
+                // Show success message
+                showNotification('Recipe swapped successfully!', 'success');
+            } else {
+                showNotification(data.error || 'Failed to swap recipe', 'error');
+                if (swapBtn) {
+                    swapBtn.disabled = false;
+                    swapBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error swapping recipe:', error);
+            showNotification('Error swapping recipe. Please try again.', 'error');
+            if (swapBtn) {
+                swapBtn.disabled = false;
+                swapBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Swap';
+            }
+        });
     }
+    
+    // PART 5: Meal Logging Functionality
+    const loggedMeals = {}; // Track logged meals: { dayKey: { mealName: true/false } }
+    const mealNutrition = {}; // Store nutrition data for each meal
+    
+    function logMeal(dayKey, mealName) {
+        if (!planDays || !planDays[dayKey] || !planDays[dayKey][mealName]) {
+            showNotification('No recipes found for this meal', 'error');
+            return;
+        }
+        
+        // Initialize logged meals tracking
+        if (!loggedMeals[dayKey]) {
+            loggedMeals[dayKey] = {};
+        }
+        
+        // Toggle meal logging
+        const isLogged = loggedMeals[dayKey][mealName] || false;
+        const logBtn = document.querySelector(`.meal-log-btn[data-day="${dayKey}"][data-meal="${mealName}"]`);
+        
+        if (isLogged) {
+            // Unlog meal - subtract nutrition
+            loggedMeals[dayKey][mealName] = false;
+            if (logBtn) {
+                logBtn.innerHTML = '<i class="fas fa-check-circle"></i> Log Meal';
+                logBtn.classList.remove('logged');
+            }
+            
+            // Subtract meal nutrition from consumed
+            if (mealNutrition[dayKey] && mealNutrition[dayKey][mealName]) {
+                subtractMealNutrition(dayKey, mealNutrition[dayKey][mealName]);
+                delete mealNutrition[dayKey][mealName];
+            }
+        } else {
+            // Log meal - add nutrition
+            loggedMeals[dayKey][mealName] = true;
+            if (logBtn) {
+                logBtn.innerHTML = '<i class="fas fa-check"></i> Logged';
+                logBtn.classList.add('logged');
+            }
+            
+            // Calculate meal nutrition
+            const mealRecipes = planDays[dayKey][mealName];
+            let mealCalories = 0;
+            let mealProtein = 0;
+            let mealFat = 0;
+            let mealCarbs = 0;
+            
+            mealRecipes.forEach(recipe => {
+                mealCalories += recipe.avg_calories || 0;
+                mealProtein += recipe.avg_protein_g || 0;
+                mealFat += recipe.avg_fat_g || 0;
+                mealCarbs += recipe.avg_carbs_g || 0;
+            });
+            
+            const nutrition = {
+                calories: mealCalories,
+                protein_g: mealProtein,
+                fat_g: mealFat,
+                carbs_g: mealCarbs
+            };
+            
+            // Store nutrition for this meal
+            if (!mealNutrition[dayKey]) {
+                mealNutrition[dayKey] = {};
+            }
+            mealNutrition[dayKey][mealName] = nutrition;
+            
+            // Add meal nutrition to consumed
+            addMealNutrition(dayKey, nutrition);
+        }
+    }
+    
+    function addMealNutrition(dayKey, nutrition) {
+        if (!dashboardData || !dashboardData[dayKey]) return;
+        
+        const dayData = dashboardData[dayKey];
+        if (!dayData.value) dayData.value = { calories: 0, protein_g: 0, fat_g: 0, carbs_g: 0 };
+        
+        // Add nutrition to consumed
+        dayData.value.calories += nutrition.calories;
+        dayData.value.protein_g += nutrition.protein_g;
+        dayData.value.fat_g += nutrition.fat_g;
+        dayData.value.carbs_g += nutrition.carbs_g;
+        
+        // Update display if this is the current day
+        const currentDay = document.querySelector('.meal-day.active');
+        if (currentDay && currentDay.getAttribute('data-day') === dayKey) {
+            updateDayDisplay(dayKey);
+        }
+    }
+    
+    function subtractMealNutrition(dayKey, nutrition) {
+        if (!dashboardData || !dashboardData[dayKey]) return;
+        
+        const dayData = dashboardData[dayKey];
+        if (!dayData.value) dayData.value = { calories: 0, protein_g: 0, fat_g: 0, carbs_g: 0 };
+        
+        // Subtract nutrition from consumed
+        dayData.value.calories = Math.max(0, dayData.value.calories - nutrition.calories);
+        dayData.value.protein_g = Math.max(0, dayData.value.protein_g - nutrition.protein_g);
+        dayData.value.fat_g = Math.max(0, dayData.value.fat_g - nutrition.fat_g);
+        dayData.value.carbs_g = Math.max(0, dayData.value.carbs_g - nutrition.carbs_g);
+        
+        // Update display if this is the current day
+        const currentDay = document.querySelector('.meal-day.active');
+        if (currentDay && currentDay.getAttribute('data-day') === dayKey) {
+            updateDayDisplay(dayKey);
+        }
+    }
+    
+    function updateDayDisplay(dayKey) {
+        if (!dashboardData || !dashboardData[dayKey]) return;
+        
+        const dayData = dashboardData[dayKey];
+        const value = dayData.value || {};
+        const target = dayData.target || {};
+        
+        // Update nutrition display
+        updateNutritionDisplay(
+            value.calories || 0, target.calories || 2200,
+            value.protein_g || 0, target.protein_g || 150,
+            value.carbs_g || 0, target.carbs_g || 300,
+            value.fat_g || 0, target.fat_g || 65
+        );
+        
+        // Update charts
+        createCaloriesChart(value.calories || 0, target.calories || 2200);
+        updateProgressBar('proteinProgress', value.protein_g || 0, target.protein_g || 150);
+        updateProgressBar('carbsProgress', value.carbs_g || 0, target.carbs_g || 300);
+        updateProgressBar('fatProgress', value.fat_g || 0, target.fat_g || 65);
+    }
+    
+    function showNotification(message, type) {
+        // Simple notification - can be enhanced with a proper notification system
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background: ${type === 'success' ? '#4CAF50' : '#f44336'};
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+    
 
     // User menu dropdown
     document.addEventListener('DOMContentLoaded', function() {

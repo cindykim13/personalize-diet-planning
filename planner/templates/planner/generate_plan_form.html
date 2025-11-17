@@ -70,6 +70,28 @@
                         <small class="form-help-text">{{ form.weight_kg.help_text }}</small>
                     {% endif %}
                 </div>
+
+                <div class="form-group">
+                    <label for="{{ form.height_cm.id_for_label }}" class="form-label">{{ form.height_cm.label }}</label>
+                    {{ form.height_cm }}
+                    {% if form.height_cm.errors %}
+                        <div class="form-error">{% for error in form.height_cm.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.height_cm.help_text %}
+                        <small class="form-help-text">{{ form.height_cm.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.activity_level.id_for_label }}" class="form-label">{{ form.activity_level.label }}</label>
+                    {{ form.activity_level }}
+                    {% if form.activity_level.errors %}
+                        <div class="form-error">{% for error in form.activity_level.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                    {% if form.activity_level.help_text %}
+                        <small class="form-help-text">{{ form.activity_level.help_text }}</small>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="form-section">
