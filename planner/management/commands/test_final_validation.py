@@ -86,7 +86,7 @@ class Command(BaseCommand):
                     'allergies': '',
                     'dislikes': ''
                 },
-                'expected_cluster_id': 3,
+                'expected_cluster_id': 3,       
                 'expected_cluster_keywords': ['High-Protein'],
                 'description': 'Female office worker with weight loss goal (balanced) → Cluster 3 (High-Protein)'
             },
